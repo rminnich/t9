@@ -2,10 +2,27 @@
 PATH=~/Documents/tamago/tamago-go-latest/bin/:~/bin:~/go/bin:$PATH
 export TAMAGO=~/Documents/tamago/tamago-go-latest/bin/go
 
-Fix this script mess -- need ''
+rm -rf build
+echo worked around shit. fix it.
+# GO111MODULE=on GOOS=tamago GOARCH=arm makebb -g -go-extra-args '''-tags "usbarmory" -tags "mx6ullevk"''' tamago-example
+echo build but get an error
+set +e
+GO111MODULE=on GOOS=tamago GOARCH=arm makebb  -gen-dir build tamago-example
+# what's odd is the build fails, even though it uses our go command. Damnd.
+set -e
+echo KEEP GOING
 
-echo GO111MODULE=on GOOS=tamago GOARCH=arm makebb -g -go-extra-args '-tags "usbarmory" -tags "mx6ullevk"' .
+cp tamago-example/IMX6ULL.yaml build/src/github.com/f-secure-foundry/tamago-example
+sed -i s/tamago-example/tamago/ build/src/github.com/f-secure-foundry/tamago-example/example.go
+echo THIS WILL FAIL
+echo I FUCKING HATE SCRIPTS, if I do this next line by hand it works. Fuck you bash.
+(cd build/src/bb.u-root.com/bb/ && GOOS=tamago GOARCH=arm go build .)
 
+echo PROBBABLY FUCKED, hit ^c
+echo hit ^C to stop, return for qemu
+read i
+qemu-system-arm -machine mcimx6ul-evk -cpu cortex-a7 -m 512M -nographic -monitor none -serial null -serial stdio -net none -semihosting -d unimp -kernel \
+	build/src/bb.u-root.com/bb/bb
 exit 0
 rminnich@e55c0b77ef7f:/tmp/bb-661021188/src/bb.u-root.com$ cd bb/
 rminnich@e55c0b77ef7f:/tmp/bb-661021188/src/bb.u-root.com/bb$ ls
