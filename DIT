@@ -7,12 +7,12 @@ echo worked around shit. fix it.
 # GO111MODULE=on GOOS=tamago GOARCH=arm makebb -g -go-extra-args '''-tags "usbarmory" -tags "mx6ullevk"''' tamago-example
 echo build but get an error
 set +e
-GO111MODULE=on GOOS=tamago GOARCH=arm makebb  -gen-dir build tamago-example
+GO111MODULE=on GOOS=tamago GOARCH=arm makebb  -gen-dir build  .
 # what's odd is the build fails, even though it uses our go command. Damnd.
 set -e
 echo KEEP GOING
 
-cp tamago-example/IMX6ULL.yaml build/src/github.com/f-secure-foundry/tamago-example
+cp IMX6ULL.yaml build/src/github.com/f-secure-foundry/tamago-example
 sed -i s/tamago-example/tamago/ build/src/github.com/f-secure-foundry/tamago-example/example.go
 echo THIS WILL FAIL
 echo I FUCKING HATE SCRIPTS, if I do this next line by hand it works. Fuck you bash.

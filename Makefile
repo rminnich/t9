@@ -72,8 +72,32 @@ qemu-gdb: GOFLAGS := $(GOFLAGS:-w=)
 qemu-gdb: $(APP)
 	$(QEMU) -kernel $(APP) -S -s
 
-#### dependencies ####
 
+# t9
+t9: check_tamago IMX6ULL.yaml
+	sh -x DIT
+	cp build/src/bb.u-root.com/bb/bb t9
+
+t9.dcd: check_tamago
+t9.dcd: GOMODCACHE=$(shell ${TAMAGO} env GOMODCACHE)
+t9.dcd: TAMAGO_PKG=$(shell grep "github.com/f-secure-foundry/tamago v" go.mod | awk '{print $$1"@"$$2}')
+t9.dcd: dcd
+	cp example.dcd t9.dcd
+
+t9.bin: t9
+	$(CROSS_COMPILE)objcopy -j .text -j .rodata -j .shstrtab -j .typelink \
+	    -j .itablink -j .gopclntab -j .go.buildinfo -j .noptrdata -j .data \
+	    -j .bss --set-section-flags .bss=alloc,load,contents \
+	    -j .noptrbss --set-section-flags .noptrbss=alloc,load,contents \
+	    t9 -O binary t9.bin
+
+t9.imx: t9.bin t9.dcd
+	mkimage -n t9.dcd -T imximage -e $(TEXT_START) -d t9.bin t9.imx
+	# Copy entry point from ELF file
+	dd if=t9 of=t9.imx bs=1 count=4 skip=24 seek=4 conv=notrunc
+
+#### dependencies ####
+#### APP ####
 $(APP): check_tamago IMX6ULL.yaml
 	$(GOENV) $(TAMAGO) build $(GOFLAGS) -o ${APP}
 
