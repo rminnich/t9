@@ -6,7 +6,7 @@ rm -rf build
 echo worked around shit. fix it.
 echo build but get an error
 set +e
-PATH=~/tamago/tamago-go-latest/bin:$PATH GO111MODULE=on GOOS=tamago GOARCH=arm makebb  -gen-dir build  . ../u-root/cmds/core/echo/
+PATH=~/tamago/tamago-go-latest/bin:$PATH GO111MODULE=on GOOS=tamago GOARCH=arm makebb  -gen-dir build  . ../u-root/cmds/core/echo/ ../u-root/cmds/exp/rush/
 set -e
 echo KEEP GOING
 
