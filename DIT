@@ -4,19 +4,21 @@ export TAMAGO=~/Documents/tamago/tamago-go-latest/bin/go
 
 rm -rf build
 echo worked around shit. fix it.
-# GO111MODULE=on GOOS=tamago GOARCH=arm makebb -g -go-extra-args '''-tags "usbarmory" -tags "mx6ullevk"''' tamago-example
 echo build but get an error
 set +e
-GO111MODULE=on GOOS=tamago GOARCH=arm makebb  -gen-dir build tamago-example
-# what's odd is the build fails, even though it uses our go command. Damnd.
+PATH=~/tamago/tamago-go-latest/bin:$PATH GO111MODULE=on GOOS=tamago GOARCH=arm makebb  -gen-dir build t9 u-root/cmds/core/echo/
 set -e
 echo KEEP GOING
 
-cp tamago-example/IMX6ULL.yaml build/src/github.com/f-secure-foundry/tamago-example
+# ls -R build
+cp t9/IMX6ULL.yaml build/src/github.com/f-secure-foundry/tamago-example
 sed -i s/tamago-example/tamago/ build/src/github.com/f-secure-foundry/tamago-example/example.go
 echo THIS WILL FAIL
 echo I FUCKING HATE SCRIPTS, if I do this next line by hand it works. Fuck you bash.
-(cd build/src/bb.u-root.com/bb/ && GOOS=tamago GOARCH=arm go build .)
+echo '(cd build/src/bb.u-root.com/bb/ && GOOS=tamago GOARCH=arm go build .)'
+echo '(cd build/src/bb.u-root.com/bb/ && GOOS=tamago GOARCH=arm go build .)'
+(cd build/src/bb.u-root.com/bb/pkg/bbmain/ && GO_EXTLINK_ENABLED=0 CGO_ENABLED=0 GOOS=tamago GOARM=7 GOARCH=arm /home/rminnich/tamago/tamago-go-latest/bin/go build -tags=usbarmory -trimpath -ldflags "-s -w -T 0x80010000  -E _rt0_arm_tamago -R 0x1000 -X 'main.Build=rminnich@e55c0b77ef7f on 2021-06-02 04:53:27' -X 'main.Revision='")
+bash
 
 echo PROBBABLY FUCKED, hit ^c
 echo hit ^C to stop, return for qemu
@@ -24,6 +26,14 @@ read i
 qemu-system-arm -machine mcimx6ul-evk -cpu cortex-a7 -m 512M -nographic -monitor none -serial null -serial stdio -net none -semihosting -d unimp -kernel \
 	build/src/bb.u-root.com/bb/bb
 exit 0
+cat ~/tamago/bin/go
+#!/bin/bash
+echo HI HI $*
+echo HI HI $*
+verb=$1
+shift
+echo HI verb $verb args $*
+GO_EXTLINK_ENABLED=0 CGO_ENABLED=0 GOOS=tamago GOARM=7 GOARCH=arm /home/rminnich/tamago/tamago-go-latest/bin/go $verb -tags="usbarmory" -trimpath -ldflags "-s -w -T 0x80010000  -E _rt0_arm_tamago -R 0x1000 -X 'main.Build=rminnich@e55c0b77ef7f on 2021-06-02 04:53:27' -X 'main.Revision='" $*
 rminnich@e55c0b77ef7f:/tmp/bb-661021188/src/bb.u-root.com$ cd bb/
 rminnich@e55c0b77ef7f:/tmp/bb-661021188/src/bb.u-root.com/bb$ ls
 go.mod	go.sum	main.go  pkg
