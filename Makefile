@@ -82,7 +82,8 @@ $(APP).dcd: GOMODCACHE=$(shell ${TAMAGO} env GOMODCACHE)
 $(APP).dcd: TAMAGO_PKG=$(shell grep "github.com/f-secure-foundry/tamago v" go.mod | awk '{print $$1"@"$$2}')
 $(APP).dcd: dcd
 
-$(APP).bin: $(APP)
+$(APP).bin: t9
+	echo "NOTE: $(APP) dependency removed until we fix makebb"
 	$(CROSS_COMPILE)objcopy -j .text -j .rodata -j .shstrtab -j .typelink \
 	    -j .itablink -j .gopclntab -j .go.buildinfo -j .noptrdata -j .data \
 	    -j .bss --set-section-flags .bss=alloc,load,contents \

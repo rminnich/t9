@@ -2,28 +2,30 @@
 PATH=~/Documents/tamago/tamago-go-latest/bin/:~/bin:~/go/bin:$PATH
 export TAMAGO=~/Documents/tamago/tamago-go-latest/bin/go
 
-rm -rf t9/build
+rm -rf build
 echo worked around shit. fix it.
 echo build but get an error
 set +e
-PATH=~/tamago/tamago-go-latest/bin:$PATH GO111MODULE=on GOOS=tamago GOARCH=arm makebb  -gen-dir t9/build t9 u-root/cmds/core/echo/
+PATH=~/tamago/tamago-go-latest/bin:$PATH GO111MODULE=on GOOS=tamago GOARCH=arm makebb  -gen-dir build  . ../u-root/cmds/core/echo/
 set -e
 echo KEEP GOING
 
 # ls -R build
-cp t9/IMX6ULL.yaml t9/build/src/github.com/f-secure-foundry/tamago-example
-sed -i s/tamago-example/tamago/ t9/build/src/github.com/f-secure-foundry/tamago-example/example.go
+cp IMX6ULL.yaml build/src/github.com/f-secure-foundry/tamago-example
+sed -i s/tamago-example/tamago/ build/src/github.com/f-secure-foundry/tamago-example/example.go
 echo THIS WILL FAIL
 echo I FUCKING HATE SCRIPTS, if I do this next line by hand it works. Fuck you bash.
 echo '(cd t9/build/src/bb.u-root.com/bb/ && GOOS=tamago GOARCH=arm go build .)'
 echo '(cd t9/build/src/bb.u-root.com/bb/ && GOOS=tamago GOARCH=arm go build .)'
-(cd t9/build/src/bb.u-root.com/bb && GO_EXTLINK_ENABLED=0 CGO_ENABLED=0 GOOS=tamago GOARM=7 GOARCH=arm /home/rminnich/tamago/tamago-go-latest/bin/go build -tags=usbarmory -trimpath -ldflags "-s -w -T 0x80010000  -E _rt0_arm_tamago -R 0x1000 -X 'main.Build=rminnich@e55c0b77ef7f on 2021-06-02 04:53:27' -X 'main.Revision='")
+(cd build/src/bb.u-root.com/bb && GO_EXTLINK_ENABLED=0 CGO_ENABLED=0 GOOS=tamago GOARM=7 GOARCH=arm /home/rminnich/tamago/tamago-go-latest/bin/go build -tags=usbarmory -trimpath -ldflags "-s -w -T 0x80010000  -E _rt0_arm_tamago -R 0x1000 -X 'main.Build=rminnich@e55c0b77ef7f on 2021-06-02 04:53:27' -X 'main.Revision='")
 bash
 
+cp build/src/bb.u-root.com/bb/bb example
+touch t9
+TAMAGO=~/tamago/tamago-go-latest/bin/go make  CROSS_COMPILE=arm-linux-gnueabihf- TARGET=mx6ullevk example.imx
 echo PROBBABLY FUCKED, hit ^c
 echo hit ^C to stop, return for qemu
 read i
-cp t9/build/src/bb.u-root.com/bb/bb example
 qemu-system-arm -machine mcimx6ul-evk -cpu cortex-a7 -m 512M -nographic -monitor none -serial null -serial stdio -net none -semihosting -d unimp -kernel example
 exit 0
 cat ~/tamago/bin/go
