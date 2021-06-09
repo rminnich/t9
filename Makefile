@@ -82,6 +82,7 @@ t9.dcd: check_tamago
 t9.dcd: GOMODCACHE=$(shell ${TAMAGO} env GOMODCACHE)
 t9.dcd: TAMAGO_PKG=$(shell grep "github.com/f-secure-foundry/tamago v" go.mod | awk '{print $$1"@"$$2}')
 t9.dcd: dcd
+	rm -f t9.dcd
 	cp example.dcd t9.dcd
 
 t9.bin: t9

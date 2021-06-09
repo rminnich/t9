@@ -18,6 +18,7 @@ echo THIS WILL FAIL
 echo I FUCKING HATE SCRIPTS, if I do this next line by hand it works. Fuck you bash.
 (cd build/src/bb.u-root.com/bb/ && GOOS=tamago GOARCH=arm go build .)
 
+exit 0
 echo PROBBABLY FUCKED, hit ^c
 echo hit ^C to stop, return for qemu
 read i
