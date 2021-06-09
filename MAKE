@@ -1,0 +1,4 @@
+make TARGET=mx6ullevk CROSS_COMPILE=arm-linux-gnueabi-
+make TARGET=mx6ullevk CROSS_COMPILE=arm-linux-gnueabi- imx
+sudo dd if=example.imx bs=512 seek=2 conv=fsync of=/dev/
+
