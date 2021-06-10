@@ -200,6 +200,16 @@ func main() {
 	log.SetOutput(io.MultiWriter(os.Stdout, logFile))
 	log.Println(banner)
 
+	f, err := os.OpenFile("/dev/console", os.O_RDWR, 0666)
+	if err == nil {
+		log.Printf("open console: %v", err)
+	} else {
+		os.Stdin = f
+	}
+
+	var b [1]byte
+	n, err := os.Stdin.Read(b[:])
+	log.Printf("stdin %T read got %d, %v, %q", os.Stdin, n, err, b[0])
 	test(true)
 
 	if imx6.Native && (imx6.Family == imx6.IMX6UL || imx6.Family == imx6.IMX6ULL) {

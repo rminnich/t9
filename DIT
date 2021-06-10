@@ -1,28 +1,30 @@
 #!/bin/bash
-PATH=~/Documents/tamago/tamago-go-latest/bin/:~/bin:~/go/bin:$PATH
-export TAMAGO=~/Documents/tamago/tamago-go-latest/bin/go
+PATH=~/tamago/tamago-go/bin/:~/bin:~/go/bin:$PATH
+export TAMAGO=~/tamago/tamago-go/bin/go
 
 rm -rf build
 echo worked around shit. fix it.
 echo build but get an error
 set +e
-PATH=~/tamago/tamago-go-latest/bin:$PATH GO111MODULE=on GOOS=tamago GOARCH=arm makebb  -gen-dir build  . ../u-root/cmds/core/echo/ ../u-root/cmds/exp/rush/
+PATH=~/tamago/tamago-go/bin:$PATH GO111MODULE=on GOOS=tamago GOARCH=arm makebb  -gen-dir build  . ../u-root/cmds/core/echo/ ../u-root/cmds/exp/rush/
 set -e
 echo KEEP GOING
 
 # ls -R build
 cp IMX6ULL.yaml build/src/github.com/f-secure-foundry/tamago-example
-sed -i s/tamago-example/tamago/ build/src/github.com/f-secure-foundry/tamago-example/example.go
+sed -i s/tamago-example/tammy/ build/src/github.com/f-secure-foundry/tamago-example/example.go
+sed -i 's/"rush"/"tamago"/' build/src/github.com/u-root/u-root/cmds/exp/rush/rush.go
 echo THIS WILL FAIL
 echo I FUCKING HATE SCRIPTS, if I do this next line by hand it works. Fuck you bash.
 echo '(cd t9/build/src/bb.u-root.com/bb/ && GOOS=tamago GOARCH=arm go build .)'
 echo '(cd t9/build/src/bb.u-root.com/bb/ && GOOS=tamago GOARCH=arm go build .)'
-(cd build/src/bb.u-root.com/bb && GO_EXTLINK_ENABLED=0 CGO_ENABLED=0 GOOS=tamago GOARM=7 GOARCH=arm /home/rminnich/tamago/tamago-go-latest/bin/go build -tags=usbarmory -trimpath -ldflags "-s -w -T 0x80010000  -E _rt0_arm_tamago -R 0x1000 -X 'main.Build=rminnich@e55c0b77ef7f on 2021-06-02 04:53:27' -X 'main.Revision='")
+(cd build/src/bb.u-root.com/bb && GO_EXTLINK_ENABLED=0 CGO_ENABLED=0 GOOS=tamago GOARM=7 GOARCH=arm /home/rminnich/tamago/tamago-go/bin/go build -tags=usbarmory -trimpath -ldflags "-s -w -T 0x80010000  -E _rt0_arm_tamago -R 0x1000 -X 'main.Build=rminnich@e55c0b77ef7f on 2021-06-02 04:53:27' -X 'main.Revision='")
 bash
 
 cp build/src/bb.u-root.com/bb/bb example
 touch t9
-TAMAGO=~/tamago/tamago-go-latest/bin/go make  CROSS_COMPILE=arm-linux-gnueabihf- TARGET=mx6ullevk example.imx
+TAMAGO=~/tamago/tamago-go/bin/go make  CROSS_COMPILE=arm-linux-gnueabihf- TARGET=mx6ullevk example.imx
+ls -l /dev/sd?
 echo PROBBABLY FUCKED, hit ^c
 echo hit ^C to stop, return for qemu
 read i
@@ -35,11 +37,11 @@ echo HI HI $*
 verb=$1
 shift
 echo HI verb $verb args $*
-GO_EXTLINK_ENABLED=0 CGO_ENABLED=0 GOOS=tamago GOARM=7 GOARCH=arm /home/rminnich/tamago/tamago-go-latest/bin/go $verb -tags="usbarmory" -trimpath -ldflags "-s -w -T 0x80010000  -E _rt0_arm_tamago -R 0x1000 -X 'main.Build=rminnich@e55c0b77ef7f on 2021-06-02 04:53:27' -X 'main.Revision='" $*
+GO_EXTLINK_ENABLED=0 CGO_ENABLED=0 GOOS=tamago GOARM=7 GOARCH=arm /home/rminnich/tamago/tamago-go/bin/go $verb -tags="usbarmory" -trimpath -ldflags "-s -w -T 0x80010000  -E _rt0_arm_tamago -R 0x1000 -X 'main.Build=rminnich@e55c0b77ef7f on 2021-06-02 04:53:27' -X 'main.Revision='" $*
 rminnich@e55c0b77ef7f:/tmp/bb-661021188/src/bb.u-root.com$ cd bb/
 rminnich@e55c0b77ef7f:/tmp/bb-661021188/src/bb.u-root.com/bb$ ls
 go.mod	go.sum	main.go  pkg
-rminnich@e55c0b77ef7f:/tmp/bb-661021188/src/bb.u-root.com/bb$ GO_EXTLINK_ENABLED=0 CGO_ENABLED=0 GOOS=tamago GOARM=7 GOARCH=arm /home/rminnich/Documents/tamago/tamago-go-latest/bin/go build -tags "usbarmory" -trimpath -ldflags "-s -w -T 0x80010000  -E _rt0_arm_tamago -R 0x1000 -X 'main.Build=rminnich@e55c0b77ef7f on 2021-06-02 04:53:27' -X 'main.Revision='" .
+rminnich@e55c0b77ef7f:/tmp/bb-661021188/src/bb.u-root.com/bb$ GO_EXTLINK_ENABLED=0 CGO_ENABLED=0 GOOS=tamago GOARM=7 GOARCH=arm /home/rminnich/Documents/tamago/tamago-go/bin/go build -tags "usbarmory" -trimpath -ldflags "-s -w -T 0x80010000  -E _rt0_arm_tamago -R 0x1000 -X 'main.Build=rminnich@e55c0b77ef7f on 2021-06-02 04:53:27' -X 'main.Revision='" .
 rminnich@e55c0b77ef7f:/tmp/bb-661021188/src/bb.u-root.com/bb$ ls
 bb  go.mod  go.sum  main.go  pkg
 rminnich@e55c0b77ef7f:/tmp/bb-661021188/src/bb.u-root.com/bb$ file bb
@@ -52,7 +54,7 @@ rminnich@e55c0b77ef7f:/tmp/bb-661021188/src/bb.u-root.com/bb$
 To run it
 
 rminnich@e55c0b77ef7f:/tmp/bb-661021188/src/bb.u-root.com$ cd bb
-rminnich@e55c0b77ef7f:/tmp/bb-661021188/src/bb.u-root.com/bb$ GO_EXTLINK_ENABLED=0 CGO_ENABLED=0 GOOS=tamago GOARM=7 GOARCH=arm /home/rminnich/Documents/tamago/tamago-go-latest/bin/go build -tags "usbarmory" -trimpath -ldflags "-s -w -T 0x80010000  -E _rt0_arm_tamago -R 0x1000 -X 'main.Build=rminnich@e55c0b77ef7f on 2021-06-02 04:53:27' -X 'main.Revision='" .
+rminnich@e55c0b77ef7f:/tmp/bb-661021188/src/bb.u-root.com/bb$ GO_EXTLINK_ENABLED=0 CGO_ENABLED=0 GOOS=tamago GOARM=7 GOARCH=arm /home/rminnich/Documents/tamago/tamago-go/bin/go build -tags "usbarmory" -trimpath -ldflags "-s -w -T 0x80010000  -E _rt0_arm_tamago -R 0x1000 -X 'main.Build=rminnich@e55c0b77ef7f on 2021-06-02 04:53:27' -X 'main.Revision='" .
 rminnich@e55c0b77ef7f:/tmp/bb-661021188/src/bb.u-root.com/bb$ qemu-system-arm -machine mcimx6ul-evk -cpu cortex-a7 -m 512M -nographic -monitor none -serial null -serial stdio -net none -semihosting -d unimp -kernel /tmp/bb-661021188/src/bb.u-root.com/bb/bb
 
 

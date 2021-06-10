@@ -115,33 +115,33 @@ func TestFile() {
 }
 
 func TestDir() {
-	dirPath := "/dir"
+	for _, dirPath := range []string{"/", "/dir", "/dev"} {
+		log.Printf("listing directory %s", dirPath)
 
-	log.Printf("listing directory %s", dirPath)
+		f, err := os.Open(dirPath)
 
-	f, err := os.Open(dirPath)
+		if err != nil {
+			panic(err)
+		}
 
-	if err != nil {
-		panic(err)
-	}
+		d, err := f.Stat()
 
-	d, err := f.Stat()
+		if err != nil {
+			panic(err)
+		}
 
-	if err != nil {
-		panic(err)
-	}
+		if !d.IsDir() {
+			panic("expected directory")
+		}
 
-	if !d.IsDir() {
-		panic("expected directory")
-	}
+		files, err := f.Readdir(-1)
 
-	files, err := f.Readdir(-1)
+		if err != nil {
+			panic(err)
+		}
 
-	if err != nil {
-		panic(err)
-	}
-
-	for _, i := range files {
-		log.Printf("%s/%s (%d bytes)", dirPath, i.Name(), i.Size())
+		for _, i := range files {
+			log.Printf("%s/%s (%d bytes)", dirPath, i.Name(), i.Size())
+		}
 	}
 }
