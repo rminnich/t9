@@ -1,0 +1,9 @@
+package main
+
+import (
+	t "github.com/f-secure-foundry/tamago-example"
+)
+
+func init() {
+	t.Runner = run
+}

@@ -13,6 +13,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"runtime"
 	"syscall"
 
 	"github.com/f-secure-foundry/tamago/soc/imx6"
@@ -45,6 +46,8 @@ func NewUART(r *imx6.UART) (*uart, error) {
 			if n > 0 {
 				u.in <- b[0]
 			}
+			runtime.Gosched()
+
 		}
 
 	}(u)
