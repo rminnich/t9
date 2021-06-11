@@ -13,8 +13,8 @@ package main
 import (
 	"fmt"
 	"log"
-	"runtime"
 	"syscall"
+	"time"
 
 	"github.com/f-secure-foundry/tamago/soc/imx6"
 )
@@ -38,25 +38,32 @@ func init() {
 }
 
 func NewUART(r *imx6.UART) (*uart, error) {
-	u := &uart{in: make(chan byte), out: make(chan byte), u: r}
+	u := &uart{in: make(chan byte, 128), out: make(chan byte, 128), u: r}
 	go func(u *uart) {
 		for {
 			var b [1]byte
 			n := u.u.Read(b[:])
 			if n > 0 {
-				u.in <- b[0]
+				u.u.Write(b[:])
+				select {
+				case u.in <- b[0]:
+				default:
+				}
 			}
-			runtime.Gosched()
-
 		}
 
 	}(u)
 	go func(u *uart) {
 		for {
 			var b [1]byte
-			b[0] = <-u.out
-			u.u.Write(b[:])
+			select {
+			case b[0] = <-u.out:
+				u.u.Write(b[:])
+			default:
+				time.Sleep(50 * time.Millisecond)
+			}
 		}
+
 	}(u)
 	return u, nil
 }
