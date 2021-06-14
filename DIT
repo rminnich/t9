@@ -19,7 +19,8 @@ echo KEEP GOING
 cp IMX6ULL.yaml build/src/github.com/f-secure-foundry/tamago-example
 sed -i s/tamago-example/tamago/ build/src/github.com/f-secure-foundry/tamago-example/example.go
 #sed -i 's/"rush"/"tamago"/' build/src/github.com/u-root/u-root/cmds/exp/rush/rush.go
-cp tgrungo build/src/bb.u-root.com/bb/run.go 
+cp extrago/tgrun.go build/src/bb.u-root.com/bb/run.go
+cp extrago/bbx.go build/src/bb.u-root.com/bb/pkg/bbmain/
 echo THIS WILL FAIL
 echo I FUCKING HATE SCRIPTS, if I do this next line by hand it works. Fuck you bash.
 echo '(cd t9/build/src/bb.u-root.com/bb/ && GOOS=tamago GOARCH=arm go build .)'
