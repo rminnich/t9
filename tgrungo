@@ -2,8 +2,10 @@ package main
 
 import (
 	t "github.com/f-secure-foundry/tamago-example"
+	"bb.u-root.com/bb/pkg/bbmain"
 )
 
 func init() {
+	bbmain.ListCmds()
 	t.Runner = run
 }
