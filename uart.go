@@ -11,10 +11,8 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"syscall"
-	"time"
 
 	"github.com/f-secure-foundry/tamago/soc/imx6"
 )
@@ -39,42 +37,31 @@ func init() {
 
 func NewUART(r *imx6.UART) (*uart, error) {
 	u := &uart{in: make(chan byte, 128), out: make(chan byte, 128), u: r}
-	go func(u *uart) {
-		for {
-			var b [1]byte
-			n := u.u.Read(b[:])
-			if n > 0 {
-				u.u.Write(b[:])
-				select {
-				case u.in <- b[0]:
-				default:
-				}
-			}
-		}
-
-	}(u)
-	go func(u *uart) {
-		for {
-			var b [1]byte
-			select {
-			case b[0] = <-u.out:
-				u.u.Write(b[:])
-			default:
-				time.Sleep(50 * time.Millisecond)
-			}
-		}
-
-	}(u)
 	return u, nil
 }
 
-func (u *uart) Pread(b []byte, _ int64) (int, error) {
-	b[0] = <-u.in
-	return 1, nil
+// Pread the UART. This will block, and depends on the underlying bit polling
+// to yield. It will return with the first []byte that is non-zero. It
+// can return more than one byte.
+// For now, just have it read one byte.
+func (u *uart) Pread(out []byte, _ int64) (int, error) {
+	var n int
+	var b [1]byte
+	for n < len(b) {
+		n = u.u.Read(b[:])
+		if n > 0 {
+			u.u.Write(b[:n])
+			copy(out, b[:n])
+		}
+	}
+	return n, nil
 }
 
+// Pwrite the UART. This will block, and depends on the underlying bit polling
+// to yield.
 func (u *uart) Pwrite(b []byte, _ int64) (int, error) {
-	return -1, fmt.Errorf("NFW")
+	u.u.Write(b[:])
+	return len(b), nil
 }
 
 var _ syscall.DevFile = &uart{}
