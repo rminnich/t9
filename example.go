@@ -185,11 +185,13 @@ func test(init bool) {
 			readSize = 0x20000 - 4096
 		}
 
-		log.Println("-- memory cards -------------------------------------------------------")
+		log.Println("-- NOT DOING memory cards -------------------------------------------------------")
 
+		if false {
 		for _, card := range cards {
 			TestUSDHC(card, size, readSize)
 		}
+	}
 	}
 }
 

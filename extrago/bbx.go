@@ -3,7 +3,7 @@ package bbmain
 // For circular dependency reasons, we need to duplicate this type.
 type BBC struct {
 	Name string
-	F    func()
+	F    func() error
 }
 
 func GetBBCCmds() []BBC {
@@ -12,7 +12,11 @@ func GetBBCCmds() []BBC {
 		if n == "bb" {
 			continue
 		}
-		b = append(b, BBC{Name: n, F: c.main})
+		b = append(b, BBC{Name: n, F: func() error {
+			c.main()
+			return nil
+		},
+		})
 	}
 	return b
 }
