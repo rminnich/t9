@@ -10,12 +10,12 @@ import (
 )
 
 func addBBBuiltInsandRun() {
-	for _, c := range bbmain.GetBBCCmds() {
-		if err := r.ExternalBuiltIn(c.Name, c.F); err != nil {
-			log.Printf("Add %s: %v", c.Name, err)
+		for _, c := range bbmain.GetBBCCmds() {
+			if err := r.ExternalBuiltIn(c.Name, c.F); err != nil {
+				log.Printf("Add %s: %v %v", c.Name, c.F, err)
+			}
+			log.Printf("ADDED %s", c.Name)
 		}
-		log.Printf("ADDED %s", c.Name)
-	}
 	log.Printf("LET's GO RUN %q", os.Args)
 	run()
 	log.Printf("RUN RETURNED!!! os.Args is now %q. WTF?", os.Args)
