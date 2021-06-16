@@ -215,15 +215,15 @@ func main() {
 	n, err := os.Stdin.Read(b[:])
 	log.Printf("stdin %T read got %d, %v, %q", os.Stdin, n, err, b[0])
 	test(true)
-	log.Printf("Runner is %v", Runner)
-	if Runner != nil {
-		os.Args = []string{"rush"}
-		Runner()
-	}
 	if imx6.Native && (imx6.Family == imx6.IMX6UL || imx6.Family == imx6.IMX6ULL) {
 		log.Println("-- i.mx6 usb ---------------------------------------------------------")
 		StartUSB()
 	}
 
+	log.Printf("Runner is %v", Runner)
+	if Runner != nil {
+		os.Args = []string{"rush"}
+		Runner()
+	}
 	log.Printf("Goodbye from tamago/arm (%s)", time.Since(start))
 }

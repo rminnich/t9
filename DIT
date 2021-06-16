@@ -9,7 +9,7 @@ set +e
 PATH=~/tamago/tamago-go/bin:$PATH GO111MODULE=on GOOS=tamago GOARCH=arm makebb  -gen-dir build  . \
 	../u-root/cmds/core/echo/ \
 	../u-root/cmds/exp/rush/ \
-	../Harvey-OS/ninep/cmd/ufs
+#	../Harvey-OS/ninep/cmd/ufs
 #	../perkeep/cmd/pk-get
 
 set -e

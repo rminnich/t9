@@ -113,5 +113,10 @@ func StartNetworking() (l *channel.Endpoint) {
 		startSSHServer(s, addr, 22, 1)
 	}()
 
+	// 9p server (see ssh_server.go)
+	go func() {
+		start9pServer(s, addr, 564, 1)
+	}()
+
 	return
 }
