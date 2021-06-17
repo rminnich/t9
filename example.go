@@ -188,10 +188,10 @@ func test(init bool) {
 		log.Println("-- NOT DOING memory cards -------------------------------------------------------")
 
 		if false {
-		for _, card := range cards {
-			TestUSDHC(card, size, readSize)
+			for _, card := range cards {
+				TestUSDHC(card, size, readSize)
+			}
 		}
-	}
 	}
 }
 
@@ -211,9 +211,11 @@ func main() {
 		os.Stdin = f
 	}
 
-	var b [1]byte
-	n, err := os.Stdin.Read(b[:])
-	log.Printf("stdin %T read got %d, %v, %q", os.Stdin, n, err, b[0])
+	if false {
+		var b [1]byte
+		n, err := os.Stdin.Read(b[:])
+		log.Printf("stdin %T read got %d, %v, %q", os.Stdin, n, err, b[0])
+	}
 	test(true)
 	if imx6.Native && (imx6.Family == imx6.IMX6UL || imx6.Family == imx6.IMX6ULL) {
 		log.Println("-- i.mx6 usb ---------------------------------------------------------")

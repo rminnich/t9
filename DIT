@@ -32,7 +32,7 @@ bash
 cp build/src/bb.u-root.com/bb/bb example
 touch t9
 TAMAGO=~/tamago/tamago-go/bin/go make  CROSS_COMPILE=arm-linux-gnueabihf- TARGET=mx6ullevk example.imx
-ls -l /dev/sd?
+lsblk
 echo PROBBABLY FUCKED, hit ^c
 echo hit ^C to stop, return for qemu
 read i
