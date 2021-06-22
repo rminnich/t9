@@ -2,6 +2,9 @@
 PATH=~/tamago/tamago-go/bin/:~/bin:~/go/bin:$PATH
 export TAMAGO=~/tamago/tamago-go/bin/go
 
+which go
+go version
+
 rm -rf build
 echo worked around shit. fix it.
 echo build but get an error
@@ -31,8 +34,11 @@ bash
 
 cp build/src/bb.u-root.com/bb/bb example
 touch t9
-TAMAGO=~/tamago/tamago-go/bin/go make  CROSS_COMPILE=arm-linux-gnueabihf- TARGET=mx6ullevk example.imx
+# TAMAGO=~/tamago/tamago-go/bin/go make  CROSS_COMPILE=arm-linux-gnueabihf- TARGET=mx6ullevk example.imx
+TAMAGO=~/tamago/tamago-go/bin/go make  CROSS_COMPILE=arm-none-eabi- TARGET=mx6ullevk example.imx
 lsblk
+ls -l /dev/mmcblk0
+echo sudo dd if=example.imx bs=512 seek=2 conv=fsync of=/dev/sdc
 echo PROBBABLY FUCKED, hit ^c
 echo hit ^C to stop, return for qemu
 read i
