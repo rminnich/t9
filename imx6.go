@@ -14,7 +14,9 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"fmt"
+	"log"
 	"runtime"
+	"syscall"
 
 	"github.com/f-secure-foundry/tamago/soc/imx6"
 )
@@ -26,6 +28,17 @@ const (
 
 var i2c []*imx6.I2C
 
+func init() {
+	if err := syscall.MkDev("/dev/iomux", 0666, func() (syscall.DevFile, error) {
+		return &longMemory{
+			addr:   imx6.IOMUXC_START,
+			length: imx6.IOMUXC_END - imx6.IOMUXC_START + 1,
+		}, nil
+	}); err != nil {
+		log.Printf("Can't set up iomux: %v", err)
+	}
+
+}
 func info() string {
 	var res bytes.Buffer
 
@@ -35,7 +48,8 @@ func info() string {
 	res.WriteString(fmt.Sprintf("Board ........: %s\n", boardName))
 	res.WriteString(fmt.Sprintf("SoC ..........: %s %d MHz\n", imx6.Model(), imx6.ARMFreq()/1000000))
 	res.WriteString(fmt.Sprintf("Secure boot ..: %v\n", imx6.SNVS()))
-	res.WriteString(fmt.Sprintf("Boot ROM hash : %x\n", sha256.Sum256(rom)))
+	res.WriteString(fmt.Sprintf("Boot ROM hash : %#x\n", sha256.Sum256(rom)))
+	res.WriteString(fmt.Sprintf("IOMUX spans from : %#x - %#x\n", imx6.IOMUXC_START, imx6.IOMUXC_END-imx6.IOMUXC_START+1))
 
 	return res.String()
 }

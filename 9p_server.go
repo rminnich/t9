@@ -22,7 +22,8 @@ func start9pServer(s *stack.Stack, addr tcpip.Address, port uint16, nic tcpip.NI
 	ln, err := gonet.ListenTCP(s, fullAddr, ipv4.ProtocolNumber)
 
 	if err != nil {
-		log.Fatal("9p listener error: ", err)
+		log.Print("9p listener error: ", err)
+		return
 	}
 
 	ufslistener, err := ufs.NewUFS(func(l *protocol.Listener) error {
@@ -31,6 +32,7 @@ func start9pServer(s *stack.Stack, addr tcpip.Address, port uint16, nic tcpip.NI
 	})
 
 	if err := ufslistener.Serve(ln); err != nil {
-		log.Fatal(err)
+		log.Print(err)
 	}
+	log.Printf("9p server exits ...")
 }
