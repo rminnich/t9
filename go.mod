@@ -3,6 +3,7 @@ module github.com/f-secure-foundry/tamago-example
 go 1.16
 
 require (
+	github.com/Harvey-OS/ninep v0.0.0-20200724082702-d30a6d4f9789 // indirect
 	github.com/arl/statsviz v0.4.0
 	github.com/btcsuite/btcd v0.21.0-beta
 	github.com/btcsuite/btcutil v1.0.2
@@ -19,3 +20,5 @@ require (
 	gvisor.dev/gvisor v0.0.0-20210527121025-1bbc6fbed51c
 	perkeep.org v0.0.0-20210329000808-dd14e9ea0630 // indirect
 )
+
+replace github.com/Harvey-OS/ninep => ../ninep

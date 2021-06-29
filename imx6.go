@@ -29,10 +29,34 @@ const (
 var i2c []*imx6.I2C
 
 func init() {
-	if err := syscall.MkDev("/dev/iomux", 0666, func() (syscall.DevFile, error) {
+	// The iomux device presents two files: iomuxctl and iomuxdata.
+	// The differentiation is maintained in case we need semantics later.
+	// For convenience, they are zero-relative, but this might change.
+	if err := syscall.MkDev("/dev/iomuxdata", 0666, func() (syscall.DevFile, error) {
 		return &longMemory{
-			addr:   imx6.IOMUXC_START,
-			length: imx6.IOMUXC_END - imx6.IOMUXC_START + 1,
+			// This is how we'd do a relative address to IOMUXC_START,
+			// how to do this tbd.
+			//addr:   imx6.IOMUXC_START,
+			//length: imx6.IOMUXC_END - imx6.IOMUXC_START + 1,
+			addr:   0,
+			length: imx6.IOMUXC_END + 1,
+		}, nil
+	}); err != nil {
+		log.Printf("Can't set up iomux: %v", err)
+	}
+	if err := syscall.MkDev("/dev/iomuxctl", 0666, func() (syscall.DevFile, error) {
+		return &longMemory{
+			addr:   0,
+			length: imx6.IOMUXC_END + 1,
+		}, nil
+	}); err != nil {
+		log.Printf("Can't set up iomux: %v", err)
+	}
+	// TODO: just make this nonsense relative to CCMGR
+	if err := syscall.MkDev("/dev/ccm", 0666, func() (syscall.DevFile, error) {
+		return &longMemory{
+			addr:   0,
+			length: imx6.CCM_CCGR6 + 4,
 		}, nil
 	}); err != nil {
 		log.Printf("Can't set up iomux: %v", err)
@@ -49,7 +73,8 @@ func info() string {
 	res.WriteString(fmt.Sprintf("SoC ..........: %s %d MHz\n", imx6.Model(), imx6.ARMFreq()/1000000))
 	res.WriteString(fmt.Sprintf("Secure boot ..: %v\n", imx6.SNVS()))
 	res.WriteString(fmt.Sprintf("Boot ROM hash : %#x\n", sha256.Sum256(rom)))
-	res.WriteString(fmt.Sprintf("IOMUX spans from : %#x - %#x\n", imx6.IOMUXC_START, imx6.IOMUXC_END-imx6.IOMUXC_START+1))
+	//	res.WriteString(fmt.Sprintf("IOMUX spans from : %#x - %#x\n", imx6.IOMUXC_START, imx6.IOMUXC_END-imx6.IOMUXC_START+1))
+	res.WriteString(fmt.Sprintf("IOMUX spans from : %#x - %#x\n", 0, imx6.IOMUXC_END+1))
 
 	return res.String()
 }

@@ -27,7 +27,7 @@ func start9pServer(s *stack.Stack, addr tcpip.Address, port uint16, nic tcpip.NI
 	}
 
 	ufslistener, err := ufs.NewUFS(func(l *protocol.Listener) error {
-		l.Trace = log.Printf
+		//l.Trace = log.Printf
 		return nil
 	})
 
