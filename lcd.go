@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"time"
 )
 
 // these need to make it to tamago
@@ -116,7 +117,7 @@ func NewLCD(enable bool) error {
 		return err
 	}
 	log.Printf("CCG#3 is %#x", r)
-	log.Print("Clear %#x", lcdif_ccgr3_mask)
+	log.Printf("Clear %#x", lcdif_ccgr3_mask)
 	if err := bitclr(ccm, lcdif_ccgr3_mask, CCGR3); err != nil {
 		return fmt.Errorf("Gate LCDIF clock step 1: %v", err)
 	}
@@ -125,7 +126,6 @@ func NewLCD(enable bool) error {
 		return err
 	}
 	log.Printf("CCG#3 is %#x", r)
-	return nil
 
 	// reg = readl(&imx_ccm->CCGR2);
 	// reg &= ~MXC_CCM_CCGR2_LCD_MASK;
@@ -158,6 +158,25 @@ func NewLCD(enable bool) error {
 		// reg = readl(ccm, CCGR2)
 		// reg |= MXC_CCM_CCGR2_LCD_MASK
 		// writel(ccm, reg, CCGR2)
+	}
+
+	// /* Reset the LCD */
+	// gpio_request(IMX_GPIO_NR(5, 9), "lcd reset")
+	// gpio_direction_output(IMX_GPIO_NR(5, 9), 0)
+	// udelay(500)
+	// gpio_direction_output(IMX_GPIO_NR(5, 9), 1)
+	if g := NewGPIO(ccm, 5, 9, "lcd reset").Set(0).Output().Delay(func() error {
+		time.Sleep(500 * time.Microsecond)
+		return nil
+	}).Set(1); g.err != nil {
+		return g.err
+	}
+
+	// /* Set Brightness to high */
+	// gpio_request(IMX_GPIO_NR(1, 8), "backlight")
+	// gpio_direction_output(IMX_GPIO_NR(1, 8), 1)
+	if g := NewGPIO(ccm, 1, 8, "backligh").Set(1).Output(); err != nil {
+		return g.err
 	}
 	return nil
 }
