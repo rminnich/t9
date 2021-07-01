@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"os"
 )
@@ -35,6 +36,68 @@ func init() {
 	flag.Parse()
 }
 
+/*
+ * configures a single pad in the iomuxer
+ */
+func onePad(w io.WriterAt, p *pad) {
+	mux_ctrl_ofs := p.muxCtlOFS
+	mux_mode := p.muxMode
+	sel_input_ofs := p.selInputOFS
+	sel_input := p.selInput
+	pad_ctrl_ofs := p.padCtlOFS
+	pad_ctrl := p.padCtl
+
+	// no LPRR?lpsr := (pad & MUX_MODE_LPSR) >> MUX_MODE_SHIFT;
+
+	// #ifdef CONFIG_MX7
+	// 	if (lpsr == IOMUX_CONFIG_LPSR) {
+	// 		base = (void *)IOMUXC_LPSR_BASE_ADDR;
+	// 		mux_mode &= ~IOMUX_CONFIG_LPSR;
+	// 		/* set daisy chain sel_input */
+	// 		if (sel_input_ofs)
+	// 			sel_input_ofs += IOMUX_LPSR_SEL_INPUT_OFS;
+	// 	}
+	// #else
+	// 	if (is_mx6ull() || is_mx6sll()) {
+	// 		if (lpsr == IOMUX_CONFIG_LPSR) {
+	// 			base = (void *)IOMUXC_SNVS_BASE_ADDR;
+	// 			mux_mode &= ~IOMUX_CONFIG_LPSR;
+	// 		}
+	// 	}
+	// #endif
+	// #endif
+
+	//	if (is_mx7() || is_mx6ull() || is_mx6sll() || mux_ctrl_ofs)
+	writel(w, mux_mode, mux_ctrl_ofs)
+
+	if sel_input_ofs != 0 {
+		writel(w, sel_input, sel_input_ofs)
+	}
+
+	// #ifdef CONFIG_IOMUX_SHARE_CONF_REG
+	// 	if (!(pad_ctrl & NO_PAD_CTRL))
+	// 		__raw_writel((mux_mode << PAD_MUX_MODE_SHIFT) | pad_ctrl,
+	// 			base + pad_ctrl_ofs);
+	// #else
+	// whatevs	if (!(pad_ctrl & NO_PAD_CTRL) && pad_ctrl_ofs)
+	writel(w, pad_ctrl, pad_ctrl_ofs)
+
+	// #ifdef CONFIG_IOMUX_LPSR
+	// 	if (lpsr == IOMUX_CONFIG_LPSR)
+	// 		base = (void *)IOMUXC_BASE_ADDR;
+	// #endif
+
+}
+
+/* configures a list of pads within declared with IOMUX_PADS macro */
+func doPads(w io.WriterAt, pads []pad) {
+	for _, p := range pads {
+		onePad(w, &p)
+	}
+}
+
+func pads() {
+}
 func NewLCD(enable bool) error {
 	ccm, err := os.OpenFile(*ccm, os.O_RDWR, 0666)
 	if err != nil {
