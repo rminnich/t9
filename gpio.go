@@ -127,18 +127,27 @@ func (g *GPIO) direction(out bool) *GPIO {
 
 // Set sets the value.
 func (g *GPIO) Set(val int) *GPIO {
+	if g.err != nil {
+		return g
+	}
 	g.regWrite(Data, uint32(val))
 	return g
 }
 
 // Output sets the output direction.
 func (g *GPIO) Output() *GPIO {
+	if g.err != nil {
+		return g
+	}
 	g.regWrite(Dir, 1)
 	return g
 }
 
 // Input sets the GPIO to be an input
 func (g *GPIO) Input() *GPIO {
+	if g.err != nil {
+		return g
+	}
 	g.regWrite(Dir, 0)
 	return g
 }
@@ -147,6 +156,9 @@ func (g *GPIO) Input() *GPIO {
 // They might wait for a fixed time, wait for a bit with a timeout,
 // and so on.
 func (g *GPIO) Delay(f ...func() error) *GPIO {
+	if g.err != nil {
+		return g
+	}
 	for _, df := range f {
 		g.err = df()
 		if g.err != nil {

@@ -26,6 +26,7 @@ const (
 
 	MXC_CCM_CCGR3_LCDIF1_PIX_OFFSET = 10
 	MXC_CCM_CCGR3_LCDIF1_PIX_MASK   = (3 << MXC_CCM_CCGR3_LCDIF1_PIX_OFFSET)
+	lcdbase                         = 0x20e_0000
 )
 
 var (
@@ -41,11 +42,11 @@ func init() {
  * configures a single pad in the iomuxer
  */
 func onePad(w io.WriterAt, p *pad) {
-	mux_ctrl_ofs := p.muxCtlOFS
+	mux_ctrl_ofs := p.muxCtlOFS + lcdbase
 	mux_mode := p.muxMode
-	sel_input_ofs := p.selInputOFS
+	sel_input_ofs := p.selInputOFS + lcdbase
 	sel_input := p.selInput
-	pad_ctrl_ofs := p.padCtlOFS
+	pad_ctrl_ofs := p.padCtlOFS + lcdbase
 	pad_ctrl := p.padCtl
 
 	// no LPRR?lpsr := (pad & MUX_MODE_LPSR) >> MUX_MODE_SHIFT;
@@ -165,7 +166,8 @@ func NewLCD(enable bool) error {
 	// gpio_direction_output(IMX_GPIO_NR(5, 9), 0)
 	// udelay(500)
 	// gpio_direction_output(IMX_GPIO_NR(5, 9), 1)
-	if g := NewGPIO(ccm, 5, 9, "lcd reset").Set(0).Output().Delay(func() error {
+	// We're going 0 relative.
+	if g := NewGPIO(ccm, 4, 9, "lcd reset").Set(0).Output().Delay(func() error {
 		time.Sleep(500 * time.Microsecond)
 		return nil
 	}).Set(1); g.err != nil {
@@ -175,7 +177,7 @@ func NewLCD(enable bool) error {
 	// /* Set Brightness to high */
 	// gpio_request(IMX_GPIO_NR(1, 8), "backlight")
 	// gpio_direction_output(IMX_GPIO_NR(1, 8), 1)
-	if g := NewGPIO(ccm, 1, 8, "backligh").Set(1).Output(); err != nil {
+	if g := NewGPIO(ccm, 0, 8, "backlight").Set(1).Output(); err != nil {
 		return g.err
 	}
 	return nil
