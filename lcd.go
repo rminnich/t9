@@ -92,14 +92,12 @@ func onePad(w io.WriterAt, p *pad) {
 }
 
 /* configures a list of pads within declared with IOMUX_PADS macro */
-func doPads(w io.WriterAt, pads []pad) {
+func doPads(w io.WriterAt, pads []lcdPad) {
 	for _, p := range pads {
-		onePad(w, &p)
+		onePad(w, p.p)
 	}
 }
 
-func pads() {
-}
 func NewLCD(enable bool) error {
 	ccm, err := os.OpenFile(*ccm, os.O_RDWR, 0666)
 	if err != nil {
@@ -161,6 +159,7 @@ func NewLCD(enable bool) error {
 		// writel(ccm, reg, CCGR2)
 	}
 
+	doPads(ccm, lcdPads)
 	// /* Reset the LCD */
 	// gpio_request(IMX_GPIO_NR(5, 9), "lcd reset")
 	// gpio_direction_output(IMX_GPIO_NR(5, 9), 0)

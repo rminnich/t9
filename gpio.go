@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 )
 
 // the u-boot cpio code uses Linux code for some reason.
@@ -26,7 +27,7 @@ const (
 	g5 = 0x20a_c000
 )
 
-var GDI = fmt.Printf
+var GDI = log.Printf
 
 var gports = map[int]string{
 	Data:    "Data",
@@ -95,7 +96,7 @@ func (g *GPIO) regRead(reg uint) uint32 {
 		return 0
 	}
 	v, err := readl(g.rw, uint32(g.base)+uint32(reg))
-	GDI("regRead %#x %#x reg %v val %#x err %v", g.portName, g.pin, gports[int(reg)], v, g.err)
+	GDI("regRead %#s %#x reg %v val %#x err %v\n", g.portName, g.pin, gports[int(reg)], v, g.err)
 	g.err = err
 	return v
 }
@@ -105,7 +106,7 @@ func (g *GPIO) regWrite(reg uint, val uint32) {
 		return
 	}
 	g.err = writel(g.rw, val, uint32(g.base)+uint32(reg))
-	GDI("regWrite %#x %#x reg %v val %#x err %v", g.portName, g.pin, gports[int(reg)], val, g.err)
+	GDI("regWrite %#s %#x reg %v val %#x err %v\n", g.portName, g.pin, gports[int(reg)], val, g.err)
 }
 
 func (g *GPIO) direction(out bool) *GPIO {
