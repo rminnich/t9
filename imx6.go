@@ -38,7 +38,8 @@ func init() {
 			// how to do this tbd.
 			//addr:   imx6.IOMUXC_START,
 			//length: imx6.IOMUXC_END - imx6.IOMUXC_START + 1,
-			addr:   0,
+			adjust: 0,
+			base:   0,
 			length: imx6.IOMUXC_END + 1,
 		}, nil
 	}); err != nil {
@@ -46,7 +47,8 @@ func init() {
 	}
 	if err := syscall.MkDev("/dev/iomuxctl", 0666, func() (syscall.DevFile, error) {
 		return &longMemory{
-			addr:   0,
+			adjust: 0,
+			base:   0,
 			length: imx6.IOMUXC_END + 1,
 		}, nil
 	}); err != nil {
@@ -55,8 +57,9 @@ func init() {
 	// TODO: just make this nonsense relative to CCMGR
 	if err := syscall.MkDev("/dev/ccm", 0666, func() (syscall.DevFile, error) {
 		return &longMemory{
-			addr:   0,
-			length: imx6.CCM_CCGR6 + 4,
+			adjust: 0,
+			base:   0,
+			length: 0x2100000, //imx6.CCM_CCGR6 + 4,
 		}, nil
 	}); err != nil {
 		log.Printf("Can't set up iomux: %v", err)
