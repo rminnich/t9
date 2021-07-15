@@ -87,6 +87,52 @@ const (
 	FB_VMODE_CONUPDATE   = 512 /* don't update x/yoffset	*/
 )
 
+// these need to make it to tamago
+const (
+	CCGR3  = 0x020C4074
+	CCGR2  = 0x020C4070
+	cscdr2 = 0x020C4038
+	/* i.MX6SX/UL LCD and PXP */
+	MXC_CCM_CCGR2_LCD_OFFSET = 28
+	MXC_CCM_CCGR2_LCD_MASK   = (3 << MXC_CCM_CCGR2_LCD_OFFSET)
+	MXC_CCM_CCGR2_PXP_OFFSET = 30
+	MXC_CCM_CCGR2_PXP_MASK   = (3 << MXC_CCM_CCGR2_PXP_OFFSET)
+
+	MXC_CCM_CSCDR2_LCDIF1_CLK_SEL_MASK = (0x7 << 9)
+	MXC_CCM_CCGR3_LCDIF_PIX_OFFSET     = 8
+	MXC_CCM_CCGR3_LCDIF_PIX_MASK       = (3 << MXC_CCM_CCGR3_LCDIF_PIX_OFFSET)
+
+	MXC_CCM_CCGR3_LCDIF1_PIX_OFFSET = 10
+	MXC_CCM_CCGR3_LCDIF1_PIX_MASK   = (3 << MXC_CCM_CCGR3_LCDIF1_PIX_OFFSET)
+	lcdbase                         = 0x20e_0000
+)
+
+const (
+	RES_MODE_640x480   = 0
+	RES_MODE_800x600   = 1
+	RES_MODE_1024x768  = 2
+	RES_MODE_960_720   = 3
+	RES_MODE_1152x864  = 4
+	RES_MODE_1280x1024 = 5
+	RES_MODE_1280x720  = 6
+	RES_MODE_1360x768  = 7
+	RES_MODE_1920x1080 = 8
+	RES_MODE_1920x1200 = 9
+	RES_MODES_COUNT    = 10
+
+	VESA_MODES_COUNT = 19
+)
+
+// #ifdef CONFIG_VIDEO
+// #define CONFIG_VIDEO_MXS
+// #define CONFIG_VIDEO_LOGO
+// #define CONFIG_SPLASH_SCREEN
+// #define CONFIG_SPLASH_SCREEN_ALIGN
+// #define CONFIG_BMP_16BPP
+// #define CONFIG_VIDEO_BMP_RLE8
+// #define CONFIG_VIDEO_BMP_LOGO
+// #define MXS_LCDIF_BASE MX6UL_LCDIF1_BASE_ADDR
+
 /******************************************************************
  * Resolution Struct
  ******************************************************************/
@@ -116,21 +162,15 @@ type ctfb_vesa_modes struct {
 	bits_per_pixel int /* bpp */
 }
 
-const (
-	RES_MODE_640x480   = 0
-	RES_MODE_800x600   = 1
-	RES_MODE_1024x768  = 2
-	RES_MODE_960_720   = 3
-	RES_MODE_1152x864  = 4
-	RES_MODE_1280x1024 = 5
-	RES_MODE_1280x720  = 6
-	RES_MODE_1360x768  = 7
-	RES_MODE_1920x1080 = 8
-	RES_MODE_1920x1200 = 9
-	RES_MODES_COUNT    = 10
-
-	VESA_MODES_COUNT = 19
-)
+var panel struct {
+	winSizeX   int
+	winSizeY   int
+	plnSizeX   int
+	plnSizeY   int
+	gdfBytesPP int
+	gdfIndex   int
+	memSize    int
+}
 
 // VESA eh? VESA will never die.
 
@@ -177,26 +217,6 @@ var res_mode_init = []ctfb_res_modes{
 	{1920, 1080, 60, 6734, 148500, 148, 88, 36, 4, 44, 5, FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT, FB_VMODE_NONINTERLACED},
 	{1920, 1200, 60, 6494, 154000, 80, 48, 26, 3, 32, 6, FB_SYNC_HOR_HIGH_ACT, FB_VMODE_NONINTERLACED},
 }
-
-// these need to make it to tamago
-const (
-	CCGR3  = 0x020C4074
-	CCGR2  = 0x020C4070
-	cscdr2 = 0x020C4038
-	/* i.MX6SX/UL LCD and PXP */
-	MXC_CCM_CCGR2_LCD_OFFSET = 28
-	MXC_CCM_CCGR2_LCD_MASK   = (3 << MXC_CCM_CCGR2_LCD_OFFSET)
-	MXC_CCM_CCGR2_PXP_OFFSET = 30
-	MXC_CCM_CCGR2_PXP_MASK   = (3 << MXC_CCM_CCGR2_PXP_OFFSET)
-
-	MXC_CCM_CSCDR2_LCDIF1_CLK_SEL_MASK = (0x7 << 9)
-	MXC_CCM_CCGR3_LCDIF_PIX_OFFSET     = 8
-	MXC_CCM_CCGR3_LCDIF_PIX_MASK       = (3 << MXC_CCM_CCGR3_LCDIF_PIX_OFFSET)
-
-	MXC_CCM_CCGR3_LCDIF1_PIX_OFFSET = 10
-	MXC_CCM_CCGR3_LCDIF1_PIX_MASK   = (3 << MXC_CCM_CCGR3_LCDIF1_PIX_OFFSET)
-	lcdbase                         = 0x20e_0000
-)
 
 var (
 	// These are used when run standalone not on the board.
@@ -263,45 +283,45 @@ func init() {
 // 	    EDID_DETAILED_TIMING_FLAG_STEREO(*t) != 0)
 // 		return -EINVAL;
 
-// 	mode->xres = EDID_DETAILED_TIMING_HORIZONTAL_ACTIVE(*t);
-// 	mode->yres = EDID_DETAILED_TIMING_VERTICAL_ACTIVE(*t);
+// 	mode.xres = EDID_DETAILED_TIMING_HORIZONTAL_ACTIVE(*t);
+// 	mode.yres = EDID_DETAILED_TIMING_VERTICAL_ACTIVE(*t);
 
-// 	h_total = mode->xres + EDID_DETAILED_TIMING_HORIZONTAL_BLANKING(*t);
-// 	v_total = mode->yres + EDID_DETAILED_TIMING_VERTICAL_BLANKING(*t);
-// 	mode->refresh = EDID_DETAILED_TIMING_PIXEL_CLOCK(*t) /
+// 	h_total = mode.xres + EDID_DETAILED_TIMING_HORIZONTAL_BLANKING(*t);
+// 	v_total = mode.yres + EDID_DETAILED_TIMING_VERTICAL_BLANKING(*t);
+// 	mode.refresh = EDID_DETAILED_TIMING_PIXEL_CLOCK(*t) /
 // 			(h_total * v_total);
 
-// 	mode->pixclock_khz = EDID_DETAILED_TIMING_PIXEL_CLOCK(*t) / 1000;
-// 	mode->pixclock = 1000000000L / mode->pixclock_khz;
+// 	mode.pixclock_khz = EDID_DETAILED_TIMING_PIXEL_CLOCK(*t) / 1000;
+// 	mode.pixclock = 1000000000L / mode.pixclock_khz;
 
-// 	mode->right_margin = EDID_DETAILED_TIMING_HSYNC_OFFSET(*t);
-// 	mode->hsync_len = EDID_DETAILED_TIMING_HSYNC_PULSE_WIDTH(*t);
+// 	mode.right_margin = EDID_DETAILED_TIMING_HSYNC_OFFSET(*t);
+// 	mode.hsync_len = EDID_DETAILED_TIMING_HSYNC_PULSE_WIDTH(*t);
 // 	margin = EDID_DETAILED_TIMING_HORIZONTAL_BLANKING(*t) -
-// 			(mode->right_margin + mode->hsync_len);
+// 			(mode.right_margin + mode.hsync_len);
 // 	if (margin <= 0)
 // 		return -EINVAL;
 
-// 	mode->left_margin = margin;
+// 	mode.left_margin = margin;
 
-// 	mode->lower_margin = EDID_DETAILED_TIMING_VSYNC_OFFSET(*t);
-// 	mode->vsync_len = EDID_DETAILED_TIMING_VSYNC_PULSE_WIDTH(*t);
+// 	mode.lower_margin = EDID_DETAILED_TIMING_VSYNC_OFFSET(*t);
+// 	mode.vsync_len = EDID_DETAILED_TIMING_VSYNC_PULSE_WIDTH(*t);
 // 	margin = EDID_DETAILED_TIMING_VERTICAL_BLANKING(*t) -
-// 			(mode->lower_margin + mode->vsync_len);
+// 			(mode.lower_margin + mode.vsync_len);
 // 	if (margin <= 0)
 // 		return -EINVAL;
 
-// 	mode->upper_margin = margin;
+// 	mode.upper_margin = margin;
 
-// 	mode->sync = 0;
+// 	mode.sync = 0;
 // 	if (EDID_DETAILED_TIMING_FLAG_HSYNC_POLARITY(*t))
-// 		mode->sync |= FB_SYNC_HOR_HIGH_ACT;
+// 		mode.sync |= FB_SYNC_HOR_HIGH_ACT;
 // 	if (EDID_DETAILED_TIMING_FLAG_VSYNC_POLARITY(*t))
-// 		mode->sync |= FB_SYNC_VERT_HIGH_ACT;
+// 		mode.sync |= FB_SYNC_VERT_HIGH_ACT;
 
 // 	if (EDID_DETAILED_TIMING_FLAG_INTERLACED(*t))
-// 		mode->vmode = FB_VMODE_INTERLACED;
+// 		mode.vmode = FB_VMODE_INTERLACED;
 // 	else
-// 		mode->vmode = FB_VMODE_NONINTERLACED;
+// 		mode.vmode = FB_VMODE_NONINTERLACED;
 
 // 	return 0;
 // }
@@ -364,6 +384,99 @@ func doPads(w io.WriterAt, pads []lcdPad) {
 	for _, p := range pads {
 		onePad(w, p.p)
 	}
+}
+
+/*
+ * ARIES M28EVK:
+ * setenv videomode
+ * video=ctfb:x:800,y:480,depth:18,mode:0,pclk:30066,
+ *       le:0,ri:256,up:0,lo:45,hs:1,vs:1,sync:100663296,vmode:0
+ *
+ * Freescale mx23evk/mx28evk with a Seiko 4.3'' WVGA panel:
+ * setenv videomode
+ * video=ctfb:x:800,y:480,depth:24,mode:0,pclk:29851,
+ * 	 le:89,ri:164,up:23,lo:10,hs:10,vs:10,sync:0,vmode:0
+ */
+
+func mxs_lcd_init(panel *panel, mode *ctfb_res_modes, bpp int) error {
+	var word_len, bus_width uint32
+	var validate_data uint8
+
+	/* Kick in the LCDIF clock */
+	//	mxs_set_lcdclk(MXS_LCDIF_BASE, PS2KHZ(mode.pixclock));
+
+	/* Restart the LCDIF block */
+	//	mxs_reset_block(&regs.hw_lcdif_ctrl_reg);
+
+	switch bpp {
+	case 24:
+		word_len = LCDIF_CTRL_WORD_LENGTH_24BIT
+		bus_width = LCDIF_CTRL_LCD_DATABUS_WIDTH_24BIT
+		valid_data = 0x7
+		break
+	case 18:
+		word_len = LCDIF_CTRL_WORD_LENGTH_24BIT
+		bus_width = LCDIF_CTRL_LCD_DATABUS_WIDTH_18BIT
+		valid_data = 0x7
+		break
+	case 16:
+		word_len = LCDIF_CTRL_WORD_LENGTH_16BIT
+		bus_width = LCDIF_CTRL_LCD_DATABUS_WIDTH_16BIT
+		valid_data = 0xf
+		break
+	case 8:
+		word_len = LCDIF_CTRL_WORD_LENGTH_8BIT
+		bus_width = LCDIF_CTRL_LCD_DATABUS_WIDTH_8BIT
+		valid_data = 0xf
+		break
+	}
+
+	writel(bus_width|word_len|LCDIF_CTRL_DOTCLK_MODE|
+		LCDIF_CTRL_BYPASS_COUNT|LCDIF_CTRL_LCDIF_MASTER,
+		hw_lcdif_ctrl)
+
+	writel(valid_data<<LCDIF_CTRL1_BYTE_PACKING_FORMAT_OFFSET,
+		hw_lcdif_ctrl1)
+
+	mxsfb_system_setup()
+
+	writel((mode.yres<<LCDIF_TRANSFER_COUNT_V_COUNT_OFFSET)|mode.xres,
+		hw_lcdif_transfer_count)
+
+	writel(LCDIF_VDCTRL0_ENABLE_PRESENT|LCDIF_VDCTRL0_ENABLE_POL|
+		LCDIF_VDCTRL0_VSYNC_PERIOD_UNIT|
+		LCDIF_VDCTRL0_VSYNC_PULSE_WIDTH_UNIT|
+		mode.vsync_len, hw_lcdif_vdctrl0)
+	writel(mode.upper_margin+mode.lower_margin+
+		mode.vsync_len+mode.yres,
+		hw_lcdif_vdctrl1)
+	writel((mode.hsync_len<<LCDIF_VDCTRL2_HSYNC_PULSE_WIDTH_OFFSET)|
+		(mode.left_margin+mode.right_margin+
+			mode.hsync_len+mode.xres),
+		hw_lcdif_vdctrl2)
+	writel(((mode.left_margin+mode.hsync_len)<<
+		LCDIF_VDCTRL3_HORIZONTAL_WAIT_CNT_OFFSET)|
+		(mode.upper_margin+mode.vsync_len),
+		hw_lcdif_vdctrl3)
+	writel((0<<LCDIF_VDCTRL4_DOTCLK_DLY_SEL_OFFSET)|mode.xres,
+		hw_lcdif_vdctrl4)
+
+	writel(panel.frameAdrs, hw_lcdif_cur_buf)
+	writel(panel.frameAdrs, hw_lcdif_next_buf)
+
+	/* Flush FIFO first */
+	writel(LCDIF_CTRL1_FIFO_CLEAR, hw_lcdif_ctrl1_set)
+
+	if CONFIG_VIDEO_MXS_MODE_SYSTEM {
+		/* Sync signals ON */
+		setbits_le32(hw_lcdif_vdctrl4, LCDIF_VDCTRL4_SYNC_SIGNALS_ON)
+	}
+
+	/* FIFO cleared */
+	writel(LCDIF_CTRL1_FIFO_CLEAR, hw_lcdif_ctrl1_clr)
+
+	/* RUN! */
+	writel(LCDIF_CTRL_RUN, hw_lcdif_ctrl_set)
 }
 
 func NewLCD(enable bool) error {
@@ -447,5 +560,74 @@ func NewLCD(enable bool) error {
 	if g := NewGPIO(ccm, 0, 8, "backlight").Set(1).Output(); err != nil {
 		return g.err
 	}
+
+	// more fun.
+	panel.winSizeX = mode.xres
+	panel.winSizeY = mode.yres
+	panel.plnSizeX = mode.xres
+	panel.plnSizeY = mode.yres
+
+	switch bpp {
+	case 24:
+	case 18:
+		panel.gdfBytesPP = 4
+		panel.gdfIndex = GDF_32BIT_X888RGB
+
+	case 16:
+		panel.gdfBytesPP = 2
+		panel.gdfIndex = GDF_16BIT_565RGB
+
+	case 8:
+		panel.gdfBytesPP = 1
+		panel.gdfIndex = GDF__8BIT_INDEX
+
+	default:
+		return fmt.Errorf("MXSFB: Invalid BPP specified! (bpp = %)\n", bpp)
+	}
+
+	panel.memSize = mode.xres * mode.yres * panel.gdfBytesPP
+
+	/* Allocate framebuffer */
+	// fb = memalign(ARCH_DMA_MINALIGN,
+	// 	      roundup(panel.memSize, ARCH_DMA_MINALIGN));
+	// if (!fb) {
+	// 	printf("MXSFB: Error allocating framebuffer!\n");
+	// 	return NULL;
+	// }
+
+	// /* Wipe framebuffer */
+	// memset(fb, 0, panel.memSize);
+
+	// panel.frameAdrs = (u32)fb;
+
+	// printf("%s\n", panel.modeIdent);
+
+	/* Start framebuffer */
+	mxs_lcd_init(&panel, &mode, bpp)
+
+	var VIDEO_MXS_MODE_SYSTEM bool
+	if VIDEO_MXS_MODE_SYSTEM {
+		/*
+		 * If the LCD runs in system mode, the LCD refresh has to be triggered
+		 * manually by setting the RUN bit in HW_LCDIF_CTRL register. To avoid
+		 * having to set this bit manually after every single change in the
+		 * framebuffer memory, we set up specially crafted circular DMA, which
+		 * sets the RUN bit, then waits until it gets cleared and repeats this
+		 * infinitelly. This way, we get smooth continuous updates of the LCD.
+		 */
+		var MXS_LCDIF_BASE uintptr
+
+		// memset(&desc, 0, sizeof(struct mxs_dma_desc));
+		// desc.address = (dma_addr_t)&desc;
+		// desc.cmd.data = MXS_DMA_DESC_COMMAND_NO_DMAXFER | MXS_DMA_DESC_CHAIN |
+		// 		MXS_DMA_DESC_WAIT4END |
+		// 		(1 << MXS_DMA_DESC_PIO_WORDS_OFFSET);
+		// desc.cmd.pio_words[0] = readl(hw_lcdif_ctrl) | LCDIF_CTRL_RUN;
+		// desc.cmd.next = (uint32_t)&desc.cmd;
+
+		// /* Execute the DMA chain. */
+		// mxs_dma_circ_start(MXS_DMA_CHANNEL_AHB_APBH_LCDIF, &desc);
+	}
+
 	return nil
 }
