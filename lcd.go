@@ -137,39 +137,40 @@ const (
  * Resolution Struct
  ******************************************************************/
 type ctfb_res_modes struct {
-	int xres /* visible resolution		*/
-	int yres
-	int refresh /* vertical refresh rate in hz  */
+	xres    uint32 /* visible resolution		*/
+	yres    uint32
+	refresh uint32 /* vertical refresh rate in hz  */
 	/* Timing: All values in pixclocks, except pixclock (of course) */
-	int pixclock     /* pixel clock in ps (pico seconds) */
-	int pixclock_khz /* pixel clock in kHz           */
-	int left_margin  /* time from sync to picture	*/
-	int right_margin /* time from picture to sync	*/
-	int upper_margin /* time from sync to picture	*/
-	int lower_margin
-	int hsync_len /* length of horizontal sync	*/
-	int vsync_len /* length of vertical sync	*/
-	int sync      /* see FB_SYNC_*		*/
-	int vmode     /* see FB_VMODE_*		*/
+	pixclock     uint32 /* pixel clock in ps (pico seconds) */
+	pixclock_khz uint32 /* pixel clock in kHz           */
+	left_margin  uint32 /* time from sync to picture	*/
+	right_margin uint32 /* time from picture to sync	*/
+	upper_margin uint32 /* time from sync to picture	*/
+	lower_margin uint32
+	hsync_len    uint32 /* length of horizontal sync	*/
+	vsync_len    uint32 /* length of vertical sync	*/
+	sync         uint32 /* see FB_SYNC_*		*/
+	vmode        uint32 /* see FB_VMODE_*		*/
 }
 
 /******************************************************************
  * Vesa Mode Struct
  ******************************************************************/
 type ctfb_vesa_modes struct {
-	vesanr         int /* Vesa number as in LILO (VESA Nr + 0x200} */
-	resindex       int /* index to resolution struct */
-	bits_per_pixel int /* bpp */
+	vesanr         uint32 /* Vesa number as in LILO (VESA Nr + 0x200} */
+	resindex       uint32 /* index to resolution struct */
+	bits_per_pixel uint32 /* bpp */
 }
 
-var panel struct {
-	winSizeX   int
-	winSizeY   int
-	plnSizeX   int
-	plnSizeY   int
-	gdfBytesPP int
-	gdfIndex   int
-	memSize    int
+type panel struct {
+	winSizeX   uint32
+	winSizeY   uint32
+	plnSizeX   uint32
+	plnSizeY   uint32
+	gdfBytesPP uint32
+	gdfIndex   uint32
+	memSize    uint32
+	frameAdrs  uint32
 }
 
 // VESA eh? VESA will never die.
@@ -223,8 +224,8 @@ var (
 	ccm = flag.String("ccm", "/dev/ccm", "Device to be used for the CCM")
 	// They have this horrible oddball videomode variable, which I leave here, but we won't use.
 	//mode = flag.String("videomode", "videomode=video=ctfb:x:480,y:272,depth:24,pclk:108695,le:8,ri:4,up:2,lo:4,hs:41,vs:10,sync:0,vmode:0", "video mode")
-	x     = flag.Int("x", 480, "x")
-	y     = flag.Int("y", 272, "y")
+	xres  = flag.Int("xres", 480, "xres")
+	yres  = flag.Int("*yres", 272, "*yres")
 	depth = flag.Int("depth", 24, "depth")
 	pclk  = flag.Int("pclk", 108695, "pclk")
 	le    = flag.Int("le", 8, "le")
@@ -246,12 +247,14 @@ func init() {
 	}
 	mode = res_mode_init[*vmode]
 	bpp = 24 - ((*vmode % 3) * 8)
+	log.Printf("Got mode #v", mode)
 	if false {
 		for i := range res_mode_init {
-			if res_mode_init[i].xres == xres &&
-				res_mode_init[i].yres == yres &&
-				res_mode_init[i].refresh == refresh {
+			if res_mode_init[i].xres == uint32(*xres) &&
+				res_mode_init[i].yres == uint32(*yres) {
+				//			&&	res_mode_init[i].refresh == refresh
 				mode = res_mode_init[i]
+				log.Printf("Got mode #v", mode)
 				break
 			}
 		}
@@ -398,9 +401,9 @@ func doPads(w io.WriterAt, pads []lcdPad) {
  * 	 le:89,ri:164,up:23,lo:10,hs:10,vs:10,sync:0,vmode:0
  */
 
-func mxs_lcd_init(panel *panel, mode *ctfb_res_modes, bpp int) error {
+func mxs_lcd_init(w io.WriterAt, panel *panel, mode *ctfb_res_modes, bpp int) error {
 	var word_len, bus_width uint32
-	var validate_data uint8
+	var valid_data uint32
 
 	/* Kick in the LCDIF clock */
 	//	mxs_set_lcdclk(MXS_LCDIF_BASE, PS2KHZ(mode.pixclock));
@@ -431,52 +434,53 @@ func mxs_lcd_init(panel *panel, mode *ctfb_res_modes, bpp int) error {
 		break
 	}
 
-	writel(bus_width|word_len|LCDIF_CTRL_DOTCLK_MODE|
+	writel(w, bus_width|word_len|LCDIF_CTRL_DOTCLK_MODE|
 		LCDIF_CTRL_BYPASS_COUNT|LCDIF_CTRL_LCDIF_MASTER,
 		hw_lcdif_ctrl)
 
-	writel(valid_data<<LCDIF_CTRL1_BYTE_PACKING_FORMAT_OFFSET,
+	writel(w, valid_data<<LCDIF_CTRL1_BYTE_PACKING_FORMAT_OFFSET,
 		hw_lcdif_ctrl1)
 
-	mxsfb_system_setup()
+	// weeak function in original. mxsfb_system_setup()
 
-	writel((mode.yres<<LCDIF_TRANSFER_COUNT_V_COUNT_OFFSET)|mode.xres,
+	writel(w, (mode.yres<<LCDIF_TRANSFER_COUNT_V_COUNT_OFFSET)|mode.xres,
 		hw_lcdif_transfer_count)
 
-	writel(LCDIF_VDCTRL0_ENABLE_PRESENT|LCDIF_VDCTRL0_ENABLE_POL|
+	writel(w, LCDIF_VDCTRL0_ENABLE_PRESENT|LCDIF_VDCTRL0_ENABLE_POL|
 		LCDIF_VDCTRL0_VSYNC_PERIOD_UNIT|
 		LCDIF_VDCTRL0_VSYNC_PULSE_WIDTH_UNIT|
 		mode.vsync_len, hw_lcdif_vdctrl0)
-	writel(mode.upper_margin+mode.lower_margin+
+	writel(w, mode.upper_margin+mode.lower_margin+
 		mode.vsync_len+mode.yres,
 		hw_lcdif_vdctrl1)
-	writel((mode.hsync_len<<LCDIF_VDCTRL2_HSYNC_PULSE_WIDTH_OFFSET)|
+	writel(w, (mode.hsync_len<<LCDIF_VDCTRL2_HSYNC_PULSE_WIDTH_OFFSET)|
 		(mode.left_margin+mode.right_margin+
 			mode.hsync_len+mode.xres),
 		hw_lcdif_vdctrl2)
-	writel(((mode.left_margin+mode.hsync_len)<<
+	writel(w, ((mode.left_margin+mode.hsync_len)<<
 		LCDIF_VDCTRL3_HORIZONTAL_WAIT_CNT_OFFSET)|
 		(mode.upper_margin+mode.vsync_len),
 		hw_lcdif_vdctrl3)
-	writel((0<<LCDIF_VDCTRL4_DOTCLK_DLY_SEL_OFFSET)|mode.xres,
+	writel(w, (0<<LCDIF_VDCTRL4_DOTCLK_DLY_SEL_OFFSET)|mode.xres,
 		hw_lcdif_vdctrl4)
 
-	writel(panel.frameAdrs, hw_lcdif_cur_buf)
-	writel(panel.frameAdrs, hw_lcdif_next_buf)
+	writel(w, panel.frameAdrs, hw_lcdif_cur_buf)
+	writel(w, panel.frameAdrs, hw_lcdif_next_buf)
 
 	/* Flush FIFO first */
-	writel(LCDIF_CTRL1_FIFO_CLEAR, hw_lcdif_ctrl1_set)
+	writel(w, LCDIF_CTRL1_FIFO_CLEAR, hw_lcdif_ctrl1+set)
 
-	if CONFIG_VIDEO_MXS_MODE_SYSTEM {
-		/* Sync signals ON */
-		setbits_le32(hw_lcdif_vdctrl4, LCDIF_VDCTRL4_SYNC_SIGNALS_ON)
-	}
+	//	if CONFIG_VIDEO_MXS_MODE_SYSTEM {
+	//	/* Sync signals ON */
+	//	setbits_le32(hw_lcdif_vdctrl4, LCDIF_VDCTRL4_SYNC_SIGNALS_ON)
+	//}
 
 	/* FIFO cleared */
-	writel(LCDIF_CTRL1_FIFO_CLEAR, hw_lcdif_ctrl1_clr)
+	writel(w, LCDIF_CTRL1_FIFO_CLEAR, hw_lcdif_ctrl1+clr)
 
 	/* RUN! */
-	writel(LCDIF_CTRL_RUN, hw_lcdif_ctrl_set)
+	writel(w, LCDIF_CTRL_RUN, hw_lcdif_ctrl+set)
+	return nil
 }
 
 func NewLCD(enable bool) error {
@@ -562,6 +566,7 @@ func NewLCD(enable bool) error {
 	}
 
 	// more fun.
+	var panel = &panel{}
 	panel.winSizeX = mode.xres
 	panel.winSizeY = mode.yres
 	panel.plnSizeX = mode.xres
@@ -598,36 +603,36 @@ func NewLCD(enable bool) error {
 	// /* Wipe framebuffer */
 	// memset(fb, 0, panel.memSize);
 
-	// panel.frameAdrs = (u32)fb;
+	panel.frameAdrs = 0x80000000 // fb;
 
 	// printf("%s\n", panel.modeIdent);
 
 	/* Start framebuffer */
-	mxs_lcd_init(&panel, &mode, bpp)
+	mxs_lcd_init(ccm, panel, &mode, bpp)
 
-	var VIDEO_MXS_MODE_SYSTEM bool
-	if VIDEO_MXS_MODE_SYSTEM {
-		/*
-		 * If the LCD runs in system mode, the LCD refresh has to be triggered
-		 * manually by setting the RUN bit in HW_LCDIF_CTRL register. To avoid
-		 * having to set this bit manually after every single change in the
-		 * framebuffer memory, we set up specially crafted circular DMA, which
-		 * sets the RUN bit, then waits until it gets cleared and repeats this
-		 * infinitelly. This way, we get smooth continuous updates of the LCD.
-		 */
-		var MXS_LCDIF_BASE uintptr
+	// var VIDEO_MXS_MODE_SYSTEM bool
+	// if VIDEO_MXS_MODE_SYSTEM {
+	// 	/*
+	// 	 * If the LCD runs in system mode, the LCD refresh has to be triggered
+	// 	 * manually by setting the RUN bit in HW_LCDIF_CTRL register. To avoid
+	// 	 * having to set this bit manually after every single change in the
+	// 	 * framebuffer memory, we set up specially crafted circular DMA, which
+	// 	 * sets the RUN bit, then waits until it gets cleared and repeats this
+	// 	 * infinitelly. This way, we get smooth continuous updates of the LCD.
+	// 	 */
+	// 	// var MXS_LCDIF_BASE uintptr
 
-		// memset(&desc, 0, sizeof(struct mxs_dma_desc));
-		// desc.address = (dma_addr_t)&desc;
-		// desc.cmd.data = MXS_DMA_DESC_COMMAND_NO_DMAXFER | MXS_DMA_DESC_CHAIN |
-		// 		MXS_DMA_DESC_WAIT4END |
-		// 		(1 << MXS_DMA_DESC_PIO_WORDS_OFFSET);
-		// desc.cmd.pio_words[0] = readl(hw_lcdif_ctrl) | LCDIF_CTRL_RUN;
-		// desc.cmd.next = (uint32_t)&desc.cmd;
+	// 	// memset(&desc, 0, sizeof(struct mxs_dma_desc));
+	// 	// desc.address = (dma_addr_t)&desc;
+	// 	// desc.cmd.data = MXS_DMA_DESC_COMMAND_NO_DMAXFER | MXS_DMA_DESC_CHAIN |
+	// 	// 		MXS_DMA_DESC_WAIT4END |
+	// 	// 		(1 << MXS_DMA_DESC_PIO_WORDS_OFFSET);
+	// 	// desc.cmd.pio_words[0] = readl(hw_lcdif_ctrl) | LCDIF_CTRL_RUN;
+	// 	// desc.cmd.next = (uint32_t)&desc.cmd;
 
-		// /* Execute the DMA chain. */
-		// mxs_dma_circ_start(MXS_DMA_CHANNEL_AHB_APBH_LCDIF, &desc);
-	}
+	// 	// /* Execute the DMA chain. */
+	// 	// mxs_dma_circ_start(MXS_DMA_CHANNEL_AHB_APBH_LCDIF, &desc);
+	// }
 
 	return nil
 }
