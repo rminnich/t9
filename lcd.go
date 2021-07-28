@@ -1,5 +1,21 @@
 package main
 
+// From various include hell
+
+// /include/configs/mx6ul_14x14_evk.h:#define MXS_LCDIF_BASE MX6UL_LCDIF1_BASE_ADDR
+// arch/arm/include/asm/arch-mx6/imx-regs.h:#define MX6UL_LCDIF1_BASE_ADDR      (AIPS2_OFF_BASE_ADDR + 0x48000)
+// arch/arm/include/asm/arch-mx6/imx-regs.h:#define AIPS2_OFF_BASE_ADDR         (ATZ2_BASE_ADDR + 0x80000)
+// arch/arm/include/asm/arch-mx6/imx-regs.h:#define ATZ2_BASE_ADDR              AIPS2_ARB_BASE_ADDR
+// arch/arm/include/asm/arch-mx6/imx-regs.h:#define AIPS2_ARB_BASE_ADDR             0x02100000
+
+// Somebody, somewhere, thinks this is cool :-)
+// So for lcd the thing we mess with is 0x0120_0000 + 0x8_0000 + 0x4_8000 = 0x012c8000 ... ?
+// The first thing the code does:
+// mxsfb.c
+// mxs_set_lcdclk(MXS_LCDIF_BASE, PS2KHZ(mode->pixclock));
+// mode is the mess define below, which we declined to do.
+// see lcd
+
 // A lot of this file is from u-boot, and so we inherit the GPL-2.0+.
 /*
  * (C) Copyright 2004
@@ -92,15 +108,15 @@ const (
 	CCGR3  = 0x020C4074
 	CCGR2  = 0x020C4070
 	cscdr2 = 0x020C4038
+	cbcmr  = 0x020C4018
 	/* i.MX6SX/UL LCD and PXP */
 	MXC_CCM_CCGR2_LCD_OFFSET = 28
 	MXC_CCM_CCGR2_LCD_MASK   = (3 << MXC_CCM_CCGR2_LCD_OFFSET)
 	MXC_CCM_CCGR2_PXP_OFFSET = 30
 	MXC_CCM_CCGR2_PXP_MASK   = (3 << MXC_CCM_CCGR2_PXP_OFFSET)
 
-	MXC_CCM_CSCDR2_LCDIF1_CLK_SEL_MASK = (0x7 << 9)
-	MXC_CCM_CCGR3_LCDIF_PIX_OFFSET     = 8
-	MXC_CCM_CCGR3_LCDIF_PIX_MASK       = (3 << MXC_CCM_CCGR3_LCDIF_PIX_OFFSET)
+	MXC_CCM_CCGR3_LCDIF_PIX_OFFSET = 8
+	MXC_CCM_CCGR3_LCDIF_PIX_MASK   = (3 << MXC_CCM_CCGR3_LCDIF_PIX_OFFSET)
 
 	MXC_CCM_CCGR3_LCDIF1_PIX_OFFSET = 10
 	MXC_CCM_CCGR3_LCDIF1_PIX_MASK   = (3 << MXC_CCM_CCGR3_LCDIF1_PIX_OFFSET)
@@ -389,6 +405,10 @@ func doPads(w io.WriterAt, pads []lcdPad) {
 	}
 }
 
+func ps2khz(ps uint32) uint32 {
+	return 1000000000 / ps
+}
+
 /*
  * ARIES M28EVK:
  * setenv videomode
@@ -401,12 +421,115 @@ func doPads(w io.WriterAt, pads []lcdPad) {
  * 	 le:89,ri:164,up:23,lo:10,hs:10,vs:10,sync:0,vmode:0
  */
 
-func mxs_lcd_init(w io.WriterAt, panel *panel, mode *ctfb_res_modes, bpp int) error {
+func mxs_set_lcdclk(rw rw, ba uint32, freq uint32) error {
+	var (
+		reg uint32 = 0
+		hck uint32 = MXC_HCLK / 1000
+		/* DIV_SELECT ranges from 27 to 54 */
+		min                         uint32 = hck * 27
+		max                         uint32 = hck * 54
+		temp                        uint32
+		best                        uint32 = 0
+		pll_div, pll_num, pll_denom uint32
+		post_div                    uint32 = 1
+
+		max_pred  uint32 = 8
+		max_postd uint32 = 8
+		pred      uint32 = 1
+		postd     uint32 = 1
+	)
+
+	// always true now			if (base_addr == LCDIF1_BASE_ADDR) {
+	reg, err := readl(rw, cscdr2)
+	if err != nil {
+		return err
+	}
+	/* Can't change clocks when clock not from pre-mux */
+	if reg&MXC_CCM_CSCDR2_LCDIF1_CLK_SEL_MASK != 0 {
+		return fmt.Errorf("Can't change clocks when clock not from pre-mux")
+	}
+
+	temp = freq * max_pred * max_postd
+	if temp < min {
+		/*
+		 * Register: PLL_VIDEO
+		 * Bit Field: POST_DIV_SELECT
+		 * 00 — Divide by 4.
+		 * 01 — Divide by 2.
+		 * 10 — Divide by 1.
+		 * 11 — Reserved
+		 * No need to check post_div(1)
+		 */
+		for post_div := uint32(2); post_div <= 4; post_div <<= 1 {
+			if (temp * post_div) > min {
+				freq *= post_div
+				break
+			}
+		}
+
+		if post_div > 4 {
+			return fmt.Errorf("Fail to set rate to %dkhz", freq)
+		}
+	}
+
+	/* Choose the best pred and postd to match freq for lcd */
+	for i := uint32(1); i <= max_pred; i++ {
+		for j := uint32(1); j <= max_postd; j++ {
+			temp = freq * i * j
+			if temp > max || temp < min {
+				continue
+			}
+			if best == 0 || temp < best {
+				best = temp
+				pred = i
+				postd = j
+			}
+		}
+	}
+
+	if best == 0 {
+		return fmt.Errorf("Fail to set rate to %dKHz", freq)
+	}
+
+	log.Printf("best %d, pred = %d, postd = %d\n", best, pred, postd)
+
+	pll_div = best / hck
+	pll_denom = 1000000
+	pll_num = (best - hck*pll_div) * pll_denom / hck
+
+	/*
+	 *                                  pll_num
+	 *             (24MHz * (pll_div + --------- ))
+	 *                                 pll_denom
+	 *freq KHz =  --------------------------------
+	 *             post_div * pred * postd * 1000
+	 */
+
+	if err := enable_pll_video(pll_div, pll_num, pll_denom, post_div); err != nil {
+		return err
+	}
+
+	enable_lcdif_clock(ba, 0)
+
+	/* Select pre-lcd clock to PLL5 and set pre divider */
+	if err := bitsetclr(rw, cscdr2, MXC_CCM_CSCDR2_LCDIF1_PRED_SEL_MASK|MXC_CCM_CSCDR2_LCDIF1_PRE_DIV_MASK, (0x2<<MXC_CCM_CSCDR2_LCDIF1_PRED_SEL_OFFSET)|((pred-1)<<MXC_CCM_CSCDR2_LCDIF1_PRE_DIV_OFFSET)); err != nil {
+		return err
+	}
+
+	/* Set the post divider */
+	if err := bitsetclr(rw, cbcmr, MXC_CCM_CBCMR_LCDIF1_PODF_MASK, ((postd - 1) << MXC_CCM_CBCMR_LCDIF1_PODF_OFFSET)); err != nil {
+		return err
+	}
+
+	return nil
+
+}
+func mxs_lcd_init(rw rw, panel *panel, mode *ctfb_res_modes, bpp int) error {
 	var word_len, bus_width uint32
 	var valid_data uint32
 
 	/* Kick in the LCDIF clock */
-	//	mxs_set_lcdclk(MXS_LCDIF_BASE, PS2KHZ(mode.pixclock));
+	mxs_set_lcdclk(rw, hw_lcdif_base, ps2khz(mode.pixclock))
 
 	/* Restart the LCDIF block */
 	//	mxs_reset_block(&regs.hw_lcdif_ctrl_reg);
@@ -434,41 +557,25 @@ func mxs_lcd_init(w io.WriterAt, panel *panel, mode *ctfb_res_modes, bpp int) er
 		break
 	}
 
-	writel(w, bus_width|word_len|LCDIF_CTRL_DOTCLK_MODE|
-		LCDIF_CTRL_BYPASS_COUNT|LCDIF_CTRL_LCDIF_MASTER,
-		hw_lcdif_ctrl)
+	writel(rw, bus_width|word_len|LCDIF_CTRL_DOTCLK_MODE|LCDIF_CTRL_BYPASS_COUNT|LCDIF_CTRL_LCDIF_MASTER, hw_lcdif_ctrl)
 
-	writel(w, valid_data<<LCDIF_CTRL1_BYTE_PACKING_FORMAT_OFFSET,
-		hw_lcdif_ctrl1)
+	writel(rw, valid_data<<LCDIF_CTRL1_BYTE_PACKING_FORMAT_OFFSET, hw_lcdif_ctrl1)
 
 	// weeak function in original. mxsfb_system_setup()
 
-	writel(w, (mode.yres<<LCDIF_TRANSFER_COUNT_V_COUNT_OFFSET)|mode.xres,
-		hw_lcdif_transfer_count)
+	writel(rw, (mode.yres<<LCDIF_TRANSFER_COUNT_V_COUNT_OFFSET)|mode.xres, hw_lcdif_transfer_count)
 
-	writel(w, LCDIF_VDCTRL0_ENABLE_PRESENT|LCDIF_VDCTRL0_ENABLE_POL|
-		LCDIF_VDCTRL0_VSYNC_PERIOD_UNIT|
-		LCDIF_VDCTRL0_VSYNC_PULSE_WIDTH_UNIT|
-		mode.vsync_len, hw_lcdif_vdctrl0)
-	writel(w, mode.upper_margin+mode.lower_margin+
-		mode.vsync_len+mode.yres,
-		hw_lcdif_vdctrl1)
-	writel(w, (mode.hsync_len<<LCDIF_VDCTRL2_HSYNC_PULSE_WIDTH_OFFSET)|
-		(mode.left_margin+mode.right_margin+
-			mode.hsync_len+mode.xres),
-		hw_lcdif_vdctrl2)
-	writel(w, ((mode.left_margin+mode.hsync_len)<<
-		LCDIF_VDCTRL3_HORIZONTAL_WAIT_CNT_OFFSET)|
-		(mode.upper_margin+mode.vsync_len),
-		hw_lcdif_vdctrl3)
-	writel(w, (0<<LCDIF_VDCTRL4_DOTCLK_DLY_SEL_OFFSET)|mode.xres,
-		hw_lcdif_vdctrl4)
+	writel(rw, LCDIF_VDCTRL0_ENABLE_PRESENT|LCDIF_VDCTRL0_ENABLE_POL|LCDIF_VDCTRL0_VSYNC_PERIOD_UNIT|LCDIF_VDCTRL0_VSYNC_PULSE_WIDTH_UNIT|mode.vsync_len, hw_lcdif_vdctrl0)
+	writel(rw, mode.upper_margin+mode.lower_margin+mode.vsync_len+mode.yres, hw_lcdif_vdctrl1)
+	writel(rw, (mode.hsync_len<<LCDIF_VDCTRL2_HSYNC_PULSE_WIDTH_OFFSET)|(mode.left_margin+mode.right_margin+mode.hsync_len+mode.xres), hw_lcdif_vdctrl2)
+	writel(rw, ((mode.left_margin+mode.hsync_len)<<LCDIF_VDCTRL3_HORIZONTAL_WAIT_CNT_OFFSET)|(mode.upper_margin+mode.vsync_len), hw_lcdif_vdctrl3)
+	writel(rw, (0<<LCDIF_VDCTRL4_DOTCLK_DLY_SEL_OFFSET)|mode.xres, hw_lcdif_vdctrl4)
 
-	writel(w, panel.frameAdrs, hw_lcdif_cur_buf)
-	writel(w, panel.frameAdrs, hw_lcdif_next_buf)
+	writel(rw, panel.frameAdrs, hw_lcdif_cur_buf)
+	writel(rw, panel.frameAdrs, hw_lcdif_next_buf)
 
 	/* Flush FIFO first */
-	writel(w, LCDIF_CTRL1_FIFO_CLEAR, hw_lcdif_ctrl1+set)
+	writel(rw, LCDIF_CTRL1_FIFO_CLEAR, hw_lcdif_ctrl1+set)
 
 	//	if CONFIG_VIDEO_MXS_MODE_SYSTEM {
 	//	/* Sync signals ON */
@@ -476,10 +583,10 @@ func mxs_lcd_init(w io.WriterAt, panel *panel, mode *ctfb_res_modes, bpp int) er
 	//}
 
 	/* FIFO cleared */
-	writel(w, LCDIF_CTRL1_FIFO_CLEAR, hw_lcdif_ctrl1+clr)
+	writel(rw, LCDIF_CTRL1_FIFO_CLEAR, hw_lcdif_ctrl1+clr)
 
 	/* RUN! */
-	writel(w, LCDIF_CTRL_RUN, hw_lcdif_ctrl+set)
+	writel(rw, LCDIF_CTRL_RUN, hw_lcdif_ctrl+set)
 	return nil
 }
 

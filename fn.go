@@ -67,3 +67,14 @@ func bitclr(rw rw, v, o uint32) error {
 	reg &= ^v
 	return writel(rw, reg, o)
 }
+
+func bitsetclr(rw rw, o, clr, set uint32) error {
+	reg, err := readl(rw, o)
+	if err != nil {
+		return err
+	}
+	reg &= ^clr
+	reg |= set
+	return writel(rw, reg, o)
+
+}
