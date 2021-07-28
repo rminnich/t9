@@ -189,6 +189,8 @@ type panel struct {
 	frameAdrs  uint32
 }
 
+var Debug = log.Printf
+
 // VESA eh? VESA will never die.
 
 var vesa_modes = []ctfb_vesa_modes{
@@ -421,6 +423,53 @@ func ps2khz(ps uint32) uint32 {
  * 	 le:89,ri:164,up:23,lo:10,hs:10,vs:10,sync:0,vmode:0
  */
 
+func enable_pll_video(rw rw, pll_div, pll_num, pll_denom, post_div uint32) error {
+	var reg uint32
+
+	Debug("pll5 div = %d, num = %d, denom = %d\n", pll_div, pll_num, pll_denom)
+
+	/* Power up PLL5 video */
+	writel(rw, BM_ANADIG_PLL_VIDEO_POWERDOWN|BM_ANADIG_PLL_VIDEO_BYPASS|BM_ANADIG_PLL_VIDEO_DIV_SELECT|BM_ANADIG_PLL_VIDEO_POST_DIV_SELECT, analog_pll_video_clr)
+
+	/* Set div, num and denom */
+	switch post_div {
+	case 1:
+		writel(rw, BF_ANADIG_PLL_VIDEO_DIV_SELECT(pll_div)|BF_ANADIG_PLL_VIDEO_POST_DIV_SELECT(0x2), analog_pll_video_set)
+	case 2:
+		writel(rw, BF_ANADIG_PLL_VIDEO_DIV_SELECT(pll_div)|BF_ANADIG_PLL_VIDEO_POST_DIV_SELECT(0x1), analog_pll_video_set)
+	case 4:
+		writel(rw, BF_ANADIG_PLL_VIDEO_DIV_SELECT(pll_div)|BF_ANADIG_PLL_VIDEO_POST_DIV_SELECT(0x0), analog_pll_video_set)
+	default:
+		return fmt.Errorf("Wrong test_div!\n")
+	}
+
+	writel(rw, BF_ANADIG_PLL_VIDEO_NUM_A(pll_num), analog_pll_video_num)
+	writel(rw, BF_ANADIG_PLL_VIDEO_DENOM_B(pll_denom), analog_pll_video_denom)
+
+	/* Wait PLL5 lock */
+	start := time.Now()
+
+	for {
+		reg, err := readl(rw, analog_pll_video)
+		if err != nil {
+			return err
+		}
+		if reg&BM_ANADIG_PLL_VIDEO_LOCK != 0 {
+			/* Enable PLL out */
+			if err := writel(rw, BM_ANADIG_PLL_VIDEO_ENABLE, analog_pll_video_set); err != nil {
+				return err
+			}
+			return nil
+		}
+		if time.Since(start) > 10*time.Millisecond {
+			return fmt.Errorf("Lock PLL5 timeout\n")
+		}
+	}
+
+	return nil
+
+}
+
 func mxs_set_lcdclk(rw rw, ba uint32, freq uint32) error {
 	var (
 		reg uint32 = 0
@@ -505,7 +554,7 @@ func mxs_set_lcdclk(rw rw, ba uint32, freq uint32) error {
 	 *             post_div * pred * postd * 1000
 	 */
 
-	if err := enable_pll_video(pll_div, pll_num, pll_denom, post_div); err != nil {
+	if err := enable_pll_video(rw, pll_div, pll_num, pll_denom, post_div); err != nil {
 		return err
 	}
 
