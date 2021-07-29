@@ -423,9 +423,57 @@ func ps2khz(ps uint32) uint32 {
  * 	 le:89,ri:164,up:23,lo:10,hs:10,vs:10,sync:0,vmode:0
  */
 
-func enable_pll_video(rw rw, pll_div, pll_num, pll_denom, post_div uint32) error {
-	var reg uint32
+func enable_lcdif_clock(rw rw, ba uint32, enable bool) error {
+	var lcdif_clk_sel_mask, lcdif_ccgr3_mask uint32
 
+	// } else if (is_mx6ul() || is_mx6ull() || is_mx6sll()) {
+
+	// if (base_addr != LCDIF1_BASE_ADDR) {
+	// 	puts("Wrong LCD interface!\n");
+	// 	return -EINVAL;
+	// }
+	/* Set to pre-mux clock at default */
+	lcdif_clk_sel_mask = MXC_CCM_CSCDR2_LCDIF1_CLK_SEL_MASK
+	lcdif_ccgr3_mask = MXC_CCM_CCGR3_LCDIF1_PIX_MASK
+	/* Gate LCDIF clock first */
+	if err := bitclr(rw, lcdif_ccgr3_mask, CCGR3); err != nil {
+		return err
+	}
+
+	if err := bitclr(rw, MXC_CCM_CCGR2_LCD_MASK, CCGR2); err != nil {
+		return err
+	}
+
+	if enable {
+		/* Select pre-mux */
+		if err := bitclr(rw, lcdif_clk_sel_mask, cscdr2); err != nil {
+			return fmt.Errorf("Select pre-mux: %v", err)
+		}
+		// reg = readl(ccm, cscdr2)
+		// reg &= ^lcdif_clk_sel_mask
+		// writel(ccm, reg, cscdr2)
+
+		/* Enable the LCDIF pix clock */
+		if err := bitset(rw, lcdif_ccgr3_mask, CCGR3); err != nil {
+			return fmt.Errorf("Setting LCDIF pix clock: %v", err)
+		}
+
+		// reg = readl(ccm, CCGR3)
+		// reg |= lcdif_ccgr3_mask
+		// writel(ccm, reg, CCGR3)
+
+		if err := bitset(rw, MXC_CCM_CCGR2_LCD_MASK, CCGR2); err != nil {
+			return fmt.Errorf("Select pre-mux: %v", err)
+		}
+		// reg = readl(ccm, CCGR2)
+		// reg |= MXC_CCM_CCGR2_LCD_MASK
+		// writel(ccm, reg, CCGR2)
+	}
+
+	return nil
+}
+
+func enable_pll_video(rw rw, pll_div, pll_num, pll_denom, post_div uint32) error {
 	Debug("pll5 div = %d, num = %d, denom = %d\n", pll_div, pll_num, pll_denom)
 
 	/* Power up PLL5 video */
@@ -558,7 +606,7 @@ func mxs_set_lcdclk(rw rw, ba uint32, freq uint32) error {
 		return err
 	}
 
-	enable_lcdif_clock(ba, 0)
+	enable_lcdif_clock(rw, ba, false)
 
 	/* Select pre-lcd clock to PLL5 and set pre divider */
 	if err := bitsetclr(rw, cscdr2, MXC_CCM_CSCDR2_LCDIF1_PRED_SEL_MASK|MXC_CCM_CSCDR2_LCDIF1_PRE_DIV_MASK, (0x2<<MXC_CCM_CSCDR2_LCDIF1_PRED_SEL_OFFSET)|((pred-1)<<MXC_CCM_CSCDR2_LCDIF1_PRE_DIV_OFFSET)); err != nil {
