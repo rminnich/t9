@@ -59,7 +59,7 @@ func init() {
 		return &longMemory{
 			adjust: 0,
 			base:   0,
-			length: 0x2100000, //imx6.CCM_CCGR6 + 4,
+			length: 0x2200000, //imx6.CCM_CCGR6 + 4,
 		}, nil
 	}); err != nil {
 		log.Printf("Can't set up iomux: %v", err)
