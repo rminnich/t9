@@ -265,14 +265,14 @@ func init() {
 	}
 	mode = res_mode_init[*vmode]
 	bpp = 24 - ((*vmode % 3) * 8)
-	log.Printf("Got mode #v", mode)
+	log.Printf("Got mode %v", mode)
 	if false {
 		for i := range res_mode_init {
 			if res_mode_init[i].xres == uint32(*xres) &&
 				res_mode_init[i].yres == uint32(*yres) {
 				//			&&	res_mode_init[i].refresh == refresh
 				mode = res_mode_init[i]
-				log.Printf("Got mode #v", mode)
+				log.Printf("Got mode %v", mode)
 				break
 			}
 		}
@@ -520,13 +520,13 @@ func enable_pll_video(rw rw, pll_div, pll_num, pll_denom, post_div uint32) error
 
 func mxs_set_lcdclk(rw rw, ba uint32, freq uint32) error {
 	var (
-		reg uint32 = 0
+		reg uint32
 		hck uint32 = MXC_HCLK / 1000
 		/* DIV_SELECT ranges from 27 to 54 */
 		min                         uint32 = hck * 27
 		max                         uint32 = hck * 54
 		temp                        uint32
-		best                        uint32 = 0
+		best                        uint32
 		pll_div, pll_num, pll_denom uint32
 		post_div                    uint32 = 1
 
@@ -546,6 +546,7 @@ func mxs_set_lcdclk(rw rw, ba uint32, freq uint32) error {
 		return fmt.Errorf("Can't change clocks when clock not from pre-mux")
 	}
 
+	Debug("CSCDR2 is %#x", reg)
 	temp = freq * max_pred * max_postd
 	if temp < min {
 		/*
@@ -626,7 +627,9 @@ func mxs_lcd_init(rw rw, panel *panel, mode *ctfb_res_modes, bpp int) error {
 	var valid_data uint32
 
 	/* Kick in the LCDIF clock */
-	mxs_set_lcdclk(rw, hw_lcdif_base, ps2khz(mode.pixclock))
+	if err := mxs_set_lcdclk(rw, hw_lcdif_base, ps2khz(mode.pixclock)); err != nil {
+		return err
+	}
 
 	/* Restart the LCDIF block */
 	//	mxs_reset_block(&regs.hw_lcdif_ctrl_reg);
@@ -722,6 +725,7 @@ func NewLCD(enable bool) error {
 	if err := bitclr(ccm, MXC_CCM_CCGR2_LCD_MASK, CCGR2); err != nil {
 		return fmt.Errorf("Gate LCDIF clock step 1: %v", err)
 	}
+	// If we don't do this, the program hangs.
 	if enable {
 		/* Select pre-mux */
 		if err := bitclr(ccm, lcdif_clk_sel_mask, cscdr2); err != nil {
@@ -814,6 +818,18 @@ func NewLCD(enable bool) error {
 	/* Start framebuffer */
 	mxs_lcd_init(ccm, panel, &mode, bpp)
 
+	l, err := readl(ccm, hw_lcdif_ctrl)
+	if err != nil {
+		return fmt.Errorf("Can't read hw_lcdif_ctrl at %#x: %v", hw_lcdif_ctrl, err)
+	}
+	l |= 1
+	l &= 0x7fffffff
+
+	err = writel(ccm, l, hw_lcdif_ctrl)
+	if err != nil {
+		return fmt.Errorf("Can't write hw_lcdif_ctrl at %#x: %v", hw_lcdif_ctrl, err)
+	}
+	// This does not get included when we build u-boot, so with luck ... not needed.
 	// var VIDEO_MXS_MODE_SYSTEM bool
 	// if VIDEO_MXS_MODE_SYSTEM {
 	// 	/*

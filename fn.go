@@ -22,11 +22,12 @@ func readl(r io.ReaderAt, o uint32) (uint32, error) {
 	var b [4]byte
 	var err error
 	var l uint32
-	defer FDI("%s(%#x) -> %#x, %v\n", rstack(), o, l, err)
 	if _, err = r.ReadAt(b[:], int64(o)); err != nil {
+		FDI("%s(%#x) -> %#x, %v\n", rstack(), o, l, err)
 		return 0, err
 	}
 	l = binary.LittleEndian.Uint32(b[:])
+	FDI("%s(%#x) -> %#x, %v\n", rstack(), o, l, err)
 	return l, nil
 }
 
