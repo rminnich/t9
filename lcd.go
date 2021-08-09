@@ -1,5 +1,40 @@
 package main
 
+// function call tree.
+// == video_hw_init ===========
+// Start at drivers/video/mxsfb.c::void *video_hw_init(void)
+// This sets video params which we set via flags below.
+// Let's hope these are not wrong.
+// Pretty sure we want
+//		panel.gdfBytesPP = 2;
+//		panel.gdfIndex = GDF_16BIT_565RGB;
+// For now we assume framebuffer at 0x80000000
+// They then call mxs_lcd_init with various settings.
+// No panel IO appears to have been done.
+// == video_hw_init == mxs_lcd_init ==========
+// == video_hw_init == mxs_lcd_init == mxs_set_lcdclk ========
+// 	MXS_LCDIF_BASE, PS2KHZ(mode->pixclock)
+// base address MUST BE LCDIF1_BASE_ADDR
+// Do the check that clock is not from pre-mux
+// set clock rate, pred and postd
+// Set up pll
+// == video_hw_init == mxs_lcd_init == mxs_set_lcdclk ==enable_pll_video ======
+// == video_hw_init == mxs_lcd_init == mxs_set_lcdclk ==enable_lcdif_clock ======
+///* Select pre-lcd clock to PLL5 and set pre divider */
+// == video_hw_init == mxs_lcd_init ========
+// == video_hw_init == mxs_lcd_init == mxs_reset_block ======
+//
+
+//#ifdef CONFIG_VIDEO
+//#define CONFIG_VIDEO_MXS
+//#define MXS_LCDIF_BASE MX6UL_LCDIF1_BASE_ADDR
+//#define CONFIG_VIDEO_LOGO
+//#define CONFIG_SPLASH_SCREEN
+//#define CONFIG_SPLASH_SCREEN_ALIGN
+//#define CONFIG_BMP_16BPP
+//#define CONFIG_VIDEO_BMP_RLE8
+//#define CONFIG_VIDEO_BMP_LOGO
+//#endif
 // From various include hell
 
 // /include/configs/mx6ul_14x14_evk.h:#define MXS_LCDIF_BASE MX6UL_LCDIF1_BASE_ADDR
@@ -632,6 +667,7 @@ func mxs_lcd_init(rw rw, panel *panel, mode *ctfb_res_modes, bpp int) error {
 	}
 
 	/* Restart the LCDIF block */
+	//	HERE FIX ME
 	//	mxs_reset_block(&regs.hw_lcdif_ctrl_reg);
 
 	switch bpp {
@@ -696,63 +732,13 @@ func NewLCD(enable bool) error {
 		return err
 	}
 	defer ccm.Close()
-	var lcdif_clk_sel_mask uint32 = MXC_CCM_CSCDR2_LCDIF1_CLK_SEL_MASK
-	var lcdif_ccgr3_mask uint32 = MXC_CCM_CCGR3_LCDIF1_PIX_MASK
-	/* Gate LCDIF clock first */
-	// reg = readl(&imx_ccm->CCGR3);
-	// reg &= ~lcdif_ccgr3_mask;
-	// writel(reg, &imx_ccm->CCGR3);
 
-	r, err := readl(ccm, CCGR3)
-	if err != nil {
-		return err
+	if false {
+		// It's not clear we want to do this
+		// before clocks. It's hard to be sure
+		// when to do it.
+		doPads(ccm, lcdPads)
 	}
-	log.Printf("CCG#3 is %#x", r)
-	log.Printf("Clear %#x", lcdif_ccgr3_mask)
-	if err := bitclr(ccm, lcdif_ccgr3_mask, CCGR3); err != nil {
-		return fmt.Errorf("Gate LCDIF clock step 1: %v", err)
-	}
-	r, err = readl(ccm, CCGR3)
-	if err != nil {
-		return err
-	}
-	log.Printf("CCG#3 is %#x", r)
-
-	// reg = readl(&imx_ccm->CCGR2);
-	// reg &= ~MXC_CCM_CCGR2_LCD_MASK;
-	// writel(reg, &imx_ccm->CCGR2);
-
-	if err := bitclr(ccm, MXC_CCM_CCGR2_LCD_MASK, CCGR2); err != nil {
-		return fmt.Errorf("Gate LCDIF clock step 1: %v", err)
-	}
-	// If we don't do this, the program hangs.
-	if enable {
-		/* Select pre-mux */
-		if err := bitclr(ccm, lcdif_clk_sel_mask, cscdr2); err != nil {
-			return fmt.Errorf("Select pre-mux: %v", err)
-		}
-		// reg = readl(ccm, cscdr2)
-		// reg &= ^lcdif_clk_sel_mask
-		// writel(ccm, reg, cscdr2)
-
-		/* Enable the LCDIF pix clock */
-		if err := bitset(ccm, lcdif_ccgr3_mask, CCGR3); err != nil {
-			return fmt.Errorf("Setting LCDIF pix clock: %v", err)
-		}
-
-		// reg = readl(ccm, CCGR3)
-		// reg |= lcdif_ccgr3_mask
-		// writel(ccm, reg, CCGR3)
-
-		if err := bitset(ccm, MXC_CCM_CCGR2_LCD_MASK, CCGR2); err != nil {
-			return fmt.Errorf("Select pre-mux: %v", err)
-		}
-		// reg = readl(ccm, CCGR2)
-		// reg |= MXC_CCM_CCGR2_LCD_MASK
-		// writel(ccm, reg, CCGR2)
-	}
-
-	doPads(ccm, lcdPads)
 	// /* Reset the LCD */
 	// gpio_request(IMX_GPIO_NR(5, 9), "lcd reset")
 	// gpio_direction_output(IMX_GPIO_NR(5, 9), 0)
@@ -818,16 +804,18 @@ func NewLCD(enable bool) error {
 	/* Start framebuffer */
 	mxs_lcd_init(ccm, panel, &mode, bpp)
 
-	l, err := readl(ccm, hw_lcdif_ctrl)
-	if err != nil {
-		return fmt.Errorf("Can't read hw_lcdif_ctrl at %#x: %v", hw_lcdif_ctrl, err)
-	}
-	l |= 1
-	l &= 0x7fffffff
+	if false {
+		l, err := readl(ccm, hw_lcdif_ctrl)
+		if err != nil {
+			return fmt.Errorf("Can't read hw_lcdif_ctrl at %#x: %v", hw_lcdif_ctrl, err)
+		}
+		l |= 1
+		l &= 0x7fffffff
 
-	err = writel(ccm, l, hw_lcdif_ctrl)
-	if err != nil {
-		return fmt.Errorf("Can't write hw_lcdif_ctrl at %#x: %v", hw_lcdif_ctrl, err)
+		err = writel(ccm, l, hw_lcdif_ctrl)
+		if err != nil {
+			return fmt.Errorf("Can't write hw_lcdif_ctrl at %#x: %v", hw_lcdif_ctrl, err)
+		}
 	}
 	// This does not get included when we build u-boot, so with luck ... not needed.
 	// var VIDEO_MXS_MODE_SYSTEM bool

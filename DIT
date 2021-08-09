@@ -38,7 +38,6 @@ touch t9
 echo THIS STEP MAKES THE example.imx VIA MKIMAGE and DD that to the stick
 TAMAGO=~/tamago/tamago-go/bin/go make  CROSS_COMPILE=arm-none-eabi- TARGET=mx6ullevk example.imx
 lsblk
-ls -l /dev/mmcblk0
 echo sudo dd if=example.imx bs=512 seek=2 conv=fsync of=/dev/sdc
 echo PROBBABLY FUCKED, hit ^c
 echo sudo ifconfig enx1a5589a26942 10.2 up
@@ -46,6 +45,7 @@ echo ping 10.1
 echo sudo mount -t 9p -o noextend,port=564 10.0.0.1 /mnt
 echo go build -o lcd main_linux.go lcd*.go  fn.go gpio.go
 go build -o lcd main_linux.go lcd*.go  fn.go gpio.go
+ls -l /dev/mmcblk0
 echo hit ^C to stop, return for qemu
 read i
 qemu-system-arm -machine mcimx6ul-evk -cpu cortex-a7 -m 512M -nographic -monitor none -serial null -serial stdio -net none -semihosting -d unimp -kernel example

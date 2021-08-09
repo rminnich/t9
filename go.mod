@@ -10,6 +10,7 @@ require (
 	github.com/f-secure-foundry/crucible v0.0.0-20210519190101-b84eb54532b9
 	github.com/f-secure-foundry/tamago v0.0.0-20210527145307-3a04f2a2761c
 	github.com/google/btree v1.0.1 // indirect
+	github.com/rogpeppe/godef v1.1.2 // indirect
 	go4.org v0.0.0-20201209231011-d4a079459e60 // indirect
 	golang.org/x/crypto v0.0.0-20210513164829-c07d793c2f9a
 	golang.org/x/net v0.0.0-20210610132358-84b48f89b13b // indirect
