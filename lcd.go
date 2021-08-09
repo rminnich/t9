@@ -657,6 +657,29 @@ func mxs_set_lcdclk(rw rw, ba uint32, freq uint32) error {
 	return nil
 
 }
+
+func mxs_reset_block(rw rw, reg uint32) error {
+	m := NewMXS(rw, reg, "LCD mxs_reset_block")
+	/* Clear SFTRST */
+	m.
+		Clr(MXSSoftReset).
+		Wait(MXSSoftReset, MXSTimeOut).
+		/* Clear CLKGATE */
+		Clr(MXSBlockClockGate).
+		/* Set SFTRST */
+		Set(MXSSoftReset).
+		/* Wait for CLKGATE being set */
+		Wait(MXSBlockClockGate, MXSTimeOut).
+		/* Clear SFTRST */
+		Clr(MXSSoftReset).
+		Wait(MXSSoftReset, MXSTimeOut).
+		/* Clear CLKGATE */
+		Clr(MXSBlockClockGate).
+		Wait(MXSBlockClockGate, MXSTimeOut)
+
+	return m.err
+}
+
 func mxs_lcd_init(rw rw, panel *panel, mode *ctfb_res_modes, bpp int) error {
 	var word_len, bus_width uint32
 	var valid_data uint32
@@ -667,8 +690,9 @@ func mxs_lcd_init(rw rw, panel *panel, mode *ctfb_res_modes, bpp int) error {
 	}
 
 	/* Restart the LCDIF block */
-	//	HERE FIX ME
-	//	mxs_reset_block(&regs.hw_lcdif_ctrl_reg);
+	if err := mxs_reset_block(rw, hw_lcdif_ctrl); err != nil {
+		return err
+	}
 
 	switch bpp {
 	case 24:

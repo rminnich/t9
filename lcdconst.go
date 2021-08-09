@@ -1,5 +1,7 @@
 package main
 
+import "time"
+
 /* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Freescale i.MX28/6SX/6UL/7D LCDIF Register Definitions
@@ -283,6 +285,12 @@ const (
 	GDF__8BIT_332RGB  = 5
 )
 
+// Constants for MXS
+const (
+	MXSTimeOut        = time.Second
+	MXSSoftReset      = (1 << 31)
+	MXSBlockClockGate = (1 << 30)
+)
 const (
 	BM_ANADIG_PLL_VIDEO_LOCK  = 0x80000000
 	BP_ANADIG_PLL_VIDEO_RSVD0 = 22
