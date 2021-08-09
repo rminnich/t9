@@ -757,12 +757,8 @@ func NewLCD(enable bool) error {
 	}
 	defer ccm.Close()
 
-	if false {
-		// It's not clear we want to do this
-		// before clocks. It's hard to be sure
-		// when to do it.
-		doPads(ccm, lcdPads)
-	}
+	doPads(ccm, lcdPads)
+
 	// /* Reset the LCD */
 	// gpio_request(IMX_GPIO_NR(5, 9), "lcd reset")
 	// gpio_direction_output(IMX_GPIO_NR(5, 9), 0)
