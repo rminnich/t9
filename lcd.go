@@ -824,18 +824,16 @@ func NewLCD(enable bool) error {
 	/* Start framebuffer */
 	mxs_lcd_init(ccm, panel, &mode, bpp)
 
-	if false {
-		l, err := readl(ccm, hw_lcdif_ctrl)
-		if err != nil {
-			return fmt.Errorf("Can't read hw_lcdif_ctrl at %#x: %v", hw_lcdif_ctrl, err)
-		}
-		l |= 1
-		l &= 0x7fffffff
+	l, err := readl(ccm, hw_lcdif_ctrl)
+	if err != nil {
+		return fmt.Errorf("Can't read hw_lcdif_ctrl at %#x: %v", hw_lcdif_ctrl, err)
+	}
+	l |= 1
+	l &= 0x7fffffff
 
-		err = writel(ccm, l, hw_lcdif_ctrl)
-		if err != nil {
-			return fmt.Errorf("Can't write hw_lcdif_ctrl at %#x: %v", hw_lcdif_ctrl, err)
-		}
+	err = writel(ccm, l, hw_lcdif_ctrl)
+	if err != nil {
+		return fmt.Errorf("Can't write hw_lcdif_ctrl at %#x: %v", hw_lcdif_ctrl, err)
 	}
 	// This does not get included when we build u-boot, so with luck ... not needed.
 	// var VIDEO_MXS_MODE_SYSTEM bool
