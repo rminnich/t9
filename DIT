@@ -50,7 +50,7 @@ echo PROBBABLY FUCKED, hit ^c
 echo sudo ifconfig enx1a5589a26942 10.2 up
 echo ping 10.1
 echo sudo mount -t 9p -o noextend,port=564 10.0.0.1 /mnt
-echo go build -o lcd main_linux.go lcd*.go  fn.go gpio.go
+echo go build -o linux main_linux.go mii*.go lcd*.go  fn.go gpio.go
 go build -o lcd main_linux.go lcd*.go  fn.go gpio.go mxs.go
 ls -l /dev/mmcblk0
 echo hit ^C to stop, return for qemu

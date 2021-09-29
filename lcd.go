@@ -273,8 +273,6 @@ var res_mode_init = []ctfb_res_modes{
 }
 
 var (
-	// These are used when run standalone not on the board.
-	ccm = flag.String("ccm", "/dev/ccm", "Device to be used for the CCM")
 	// They have this horrible oddball videomode variable, which I leave here, but we won't use.
 	//mode = flag.String("videomode", "videomode=video=ctfb:x:480,y:272,depth:24,pclk:108695,le:8,ri:4,up:2,lo:4,hs:41,vs:10,sync:0,vmode:0", "video mode")
 	xres  = flag.Int("xres", 480, "xres")
@@ -292,27 +290,6 @@ var (
 	mode  = res_mode_init[0]
 	bpp   int
 )
-
-func init() {
-	flag.Parse()
-	if *vmode > len(res_mode_init) {
-		log.Fatalf("Mode %d is out of range 0 - %d", *vmode, len(res_mode_init))
-	}
-	mode = res_mode_init[*vmode]
-	bpp = 24 - ((*vmode % 3) * 8)
-	log.Printf("Got mode %v", mode)
-	if false {
-		for i := range res_mode_init {
-			if res_mode_init[i].xres == uint32(*xres) &&
-				res_mode_init[i].yres == uint32(*yres) {
-				//			&&	res_mode_init[i].refresh == refresh
-				mode = res_mode_init[i]
-				log.Printf("Got mode %v", mode)
-				break
-			}
-		}
-	}
-}
 
 /**
  * Convert an EDID detailed timing to a struct ctfb_res_modes
@@ -751,6 +728,24 @@ func mxs_lcd_init(rw rw, panel *panel, mode *ctfb_res_modes, bpp int) error {
 }
 
 func NewLCD(enable bool) error {
+	if *vmode > len(res_mode_init) {
+		return fmt.Errorf("Mode %d is out of range 0 - %d", *vmode, len(res_mode_init))
+	}
+	mode = res_mode_init[*vmode]
+	bpp = 24 - ((*vmode % 3) * 8)
+	log.Printf("Got mode %v", mode)
+	if false {
+		for i := range res_mode_init {
+			if res_mode_init[i].xres == uint32(*xres) &&
+				res_mode_init[i].yres == uint32(*yres) {
+				//			&&	res_mode_init[i].refresh == refresh
+				mode = res_mode_init[i]
+				log.Printf("Got mode %v", mode)
+				break
+			}
+		}
+	}
+
 	ccm, err := os.OpenFile(*ccm, os.O_RDWR, 0666)
 	if err != nil {
 		return err
