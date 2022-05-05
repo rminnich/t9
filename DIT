@@ -1,0 +1,7 @@
+#!/bin/bash
+
+set -e
+set -x
+PATH=/home/rminnich/tamago/tamago-go/bin:$PATH 
+export TAMAGO=/home/rminnich/tamago/tamago-go/bin/go 
+make CROSS_COMPILE=arm-none-eabi- TARGET=usbarmory imx
