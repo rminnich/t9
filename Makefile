@@ -122,6 +122,9 @@ $(APP).dcd:
 		echo "invalid target - options are: usbarmory, mx6ullevk"; \
 		exit 1; \
 	fi
+boot: example.imx
+	sudo ~/bin/armory-boot-usb -i example.imx -t 30
+#### secure boot ####
 
 #### RISC-V targets ####
 
