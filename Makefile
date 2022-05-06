@@ -102,6 +102,8 @@ IMX6ULL.yaml:
 	${TAMAGO} install github.com/usbarmory/crucible/cmd/habtool
 	cp -f $(GOMODCACHE)/$(CRUCIBLE_PKG)/cmd/crucible/fusemaps/IMX6ULL.yaml IMX6ULL.yaml
 
+boot: example.imx
+	sudo ~/bin/armory-boot-usb -i example.imx -t 30
 #### secure boot ####
 
 $(APP)-signed.imx: check_hab_keys $(APP).imx

@@ -12,7 +12,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/usbarmory/imx-usbnet"
+	usbnet "github.com/usbarmory/imx-usbnet"
 	"github.com/usbarmory/tamago/soc/imx6/usb"
 
 	"github.com/miekg/dns"
@@ -56,6 +56,12 @@ func startNetworking() {
 		log.Fatalf("could not initialize HTTP listener, %v", err)
 	}
 
+	listener9P, err := iface.ListenerTCP4(564)
+
+	if err != nil {
+		log.Printf("could not initialize 9P listener, %v", err)
+	}
+
 	// create index.html
 	setupStaticWebAssets()
 
@@ -72,6 +78,11 @@ func startNetworking() {
 	go func() {
 		// see web_server.go
 		startWebServer(listenerHTTPS, deviceIP, 443, true)
+	}()
+
+	// 9p server (see 9p_server.go)
+	go func() {
+		start9pServer(listener9P, deviceIP, 564, 1)
 	}()
 
 	usb.USB1.Init()

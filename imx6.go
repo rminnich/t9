@@ -15,7 +15,9 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"fmt"
+	"log"
 	"runtime"
+	"syscall"
 
 	"github.com/usbarmory/tamago/soc/imx6"
 	"github.com/usbarmory/tamago/soc/imx6/usb"
@@ -27,6 +29,45 @@ const (
 )
 
 var i2c []*imx6.I2C
+
+func init() {
+	// The iomux device presents two files: iomuxctl and iomuxdata.
+	// The differentiation is maintained in case we need semantics later.
+	// For convenience, they are zero-relative, but this might change.
+	if err := syscall.MkDev("/dev/iomuxdata", 0666, func() (syscall.DevFile, error) {
+		return &longMemory{
+			// This is how we'd do a relative address to IOMUXC_START,
+			// how to do this tbd.
+			//addr:   imx6.IOMUXC_START,
+			//length: imx6.IOMUXC_END - imx6.IOMUXC_START + 1,
+			adjust: 0,
+			base:   0,
+			length: imx6.IOMUXC_END + 1,
+		}, nil
+	}); err != nil {
+		log.Printf("Can't set up iomux: %v", err)
+	}
+	if err := syscall.MkDev("/dev/iomuxctl", 0666, func() (syscall.DevFile, error) {
+		return &longMemory{
+			adjust: 0,
+			base:   0,
+			length: imx6.IOMUXC_END + 1,
+		}, nil
+	}); err != nil {
+		log.Printf("Can't set up iomux: %v", err)
+	}
+	// TODO: just make this nonsense relative to CCMGR
+	if err := syscall.MkDev("/dev/ccm", 0666, func() (syscall.DevFile, error) {
+		return &longMemory{
+			adjust: 0,
+			base:   0,
+			length: 0x2200000, //imx6.CCM_CCGR6 + 4,
+		}, nil
+	}); err != nil {
+		log.Printf("Can't set up iomux: %v", err)
+	}
+
+}
 
 func info() string {
 	var res bytes.Buffer

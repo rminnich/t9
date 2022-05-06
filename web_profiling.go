@@ -9,8 +9,9 @@
 package main
 
 import (
-	"github.com/arl/statsviz"
 	_ "net/http/pprof"
+
+	"github.com/arl/statsviz"
 )
 
 func init() {
