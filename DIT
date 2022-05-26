@@ -2,8 +2,13 @@
 
 set -e
 set -x
-PATH=/home/rminnich/tamago/tamago-go/bin:$PATH 
-export TAMAGO=/home/rminnich/tamago/tamago-go/bin/go 
+PATH=~/tamago/tamago-go/bin:$PATH 
+export TAMAGO=`pwd`/../tamago-go/bin/go 
 make CROSS_COMPILE=arm-none-eabi- TARGET=usbarmory imx
 
 go build -o t9 main_linux.go  fn.go
+
+armory-boot-usb -i example.imx -t 400
+sudo ifconfig en8 10.0.0.2
+
+
