@@ -31,10 +31,8 @@ const (
 var i2c []*imx6.I2C
 
 func init() {
-	// The iomux device presents two files: iomuxctl and iomuxdata.
-	// The differentiation is maintained in case we need semantics later.
-	// For convenience, they are zero-relative, but this might change.
-	if err := syscall.MkDev("/dev/iomuxdata", 0666, func() (syscall.DevFile, error) {
+	// muxclone creates a new mux instance, unitialized.
+	if err := syscall.MkDev("/dev/muxclone", 0666, func() (syscall.DevFile, error) {
 		return &longMemory{
 			// This is how we'd do a relative address to IOMUXC_START,
 			// how to do this tbd.
