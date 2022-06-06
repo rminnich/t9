@@ -14,6 +14,7 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"log"
 	"strconv"
 	"strings"
@@ -35,6 +36,7 @@ var (
 )
 
 func (m *muxclone) Pread(out []byte, addr int64) (int, error) {
+	return -1, io.EOF
 	var b = bytes.NewReader([]byte(fmt.Sprintf("%d devices", m.nmux)))
 	return b.ReadAt(out, addr)
 }
@@ -57,18 +59,24 @@ type muxctl struct {
 func init() {
 	// muxclone creates a new mux instance, unitialized.
 	if err := syscall.MkDev("/dev/muxclone", 0666, func() (syscall.DevFile, error) {
+		log.Printf("muxclone open")
+		return nil, fmt.Errorf("no")
 		mux.m.Lock()
 		defer mux.m.Unlock()
 		i := mux.nmux
 		mux.nmux++
-		n := fmt.Sprintf("/dev/%dctl", i)
+		n := fmt.Sprintf("/dev/mux%dctl", i)
+		log.Printf("New dev %s", n)
 		if err := syscall.MkDev(n, 0666, func() (syscall.DevFile, error) {
+			log.Printf("muxctl open")
 			mux.m.Lock()
+			log.Printf("dev %d locked", mux.nmux)
 			defer mux.m.Unlock()
 			m := &mux.ctl[i]
 			m.num = uint(i)
 			return m, nil
 		}); err != nil {
+			log.Printf("clone failed: %v", err)
 			return nil, fmt.Errorf("Can't set up %s: %w", n, err)
 		}
 		return mux, nil

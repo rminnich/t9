@@ -31,20 +31,6 @@ const (
 var i2c []*imx6.I2C
 
 func init() {
-	// muxclone creates a new mux instance, unitialized.
-	if err := syscall.MkDev("/dev/muxclone", 0666, func() (syscall.DevFile, error) {
-		return &longMemory{
-			// This is how we'd do a relative address to IOMUXC_START,
-			// how to do this tbd.
-			//addr:   imx6.IOMUXC_START,
-			//length: imx6.IOMUXC_END - imx6.IOMUXC_START + 1,
-			adjust: 0,
-			base:   0,
-			length: imx6.IOMUXC_END + 1,
-		}, nil
-	}); err != nil {
-		log.Printf("Can't set up iomux: %v", err)
-	}
 	if err := syscall.MkDev("/dev/iomuxctl", 0666, func() (syscall.DevFile, error) {
 		return &longMemory{
 			adjust: 0,
