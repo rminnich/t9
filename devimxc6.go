@@ -31,6 +31,7 @@ const (
 var i2c []*imx6.I2C
 
 func init() {
+<<<<<<< Updated upstream
 	// The iomux device presents two files: iomuxctl and iomuxdata.
 	// The differentiation is maintained in case we need semantics later.
 	// For convenience, they are zero-relative, but this might change.
@@ -47,6 +48,8 @@ func init() {
 	}); err != nil {
 		log.Printf("Can't set up iomux: %v", err)
 	}
+=======
+>>>>>>> Stashed changes
 	if err := syscall.MkDev("/dev/iomuxctl", 0666, func() (syscall.DevFile, error) {
 		return &longMemory{
 			adjust: 0,
