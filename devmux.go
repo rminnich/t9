@@ -27,7 +27,7 @@ import (
 type muxclone struct {
 	m    sync.Mutex
 	nmux int
-	ctl  []muxctl
+	ctl  []*muxctl
 }
 
 var (
@@ -59,24 +59,40 @@ type muxctl struct {
 func init() {
 	// muxclone creates a new mux instance, unitialized.
 	if err := syscall.MkDev("/dev/muxclone", 0666, func() (syscall.DevFile, error) {
-		log.Printf("muxclone open")
-		return nil, fmt.Errorf("no")
+		// DO NOT DO log.printf. Ends very badly.
+		// likely because, well, we're in the middle of network traffic
+		// or something? not sure. Need to clean this up.
+		// this works and gets a nice error message.
+		//return nil, fmt.Errorf("fuck me")
+		// crash. log.Printf("muxclone open")
 		mux.m.Lock()
 		defer mux.m.Unlock()
+		if false {
+			return nil, fmt.Errorf("locked")
+		}
 		i := mux.nmux
 		mux.nmux++
 		n := fmt.Sprintf("/dev/mux%dctl", i)
-		log.Printf("New dev %s", n)
+		if false {
+			return nil, fmt.Errorf(fmt.Sprintf("New dev %s", n))
+		}
+		// OK to here.
 		if err := syscall.MkDev(n, 0666, func() (syscall.DevFile, error) {
-			log.Printf("muxctl open")
+			if false {
+				return nil, fmt.Errorf(fmt.Sprintf("open dev %s", n))
+			}
 			mux.m.Lock()
-			log.Printf("dev %d locked", mux.nmux)
 			defer mux.m.Unlock()
-			m := &mux.ctl[i]
-			m.num = uint(i)
+			if true {
+				return nil, fmt.Errorf(fmt.Sprintf("dev %s locked", n))
+			}
+			m := &muxctl{num: uint(len(mux.ctl))}
+			mux.ctl = append(mux.ctl, m)
+			if true {
+				return nil, fmt.Errorf(fmt.Sprintf("cons'ed up dev %s", n))
+			}
 			return m, nil
 		}); err != nil {
-			log.Printf("clone failed: %v", err)
 			return nil, fmt.Errorf("Can't set up %s: %w", n, err)
 		}
 		return mux, nil
@@ -95,6 +111,7 @@ func (m *muxctl) String() string {
 
 // Pread reads mux information.
 func (m *muxctl) Pread(out []byte, addr int64) (int, error) {
+	return -1, io.EOF
 	m.m.Lock()
 	defer m.m.Unlock()
 	s := m.String()
