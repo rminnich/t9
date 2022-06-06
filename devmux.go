@@ -35,8 +35,8 @@ var (
 )
 
 func (m *muxclone) Pread(out []byte, addr int64) (int, error) {
-	var b = bytes.NewBufferString(fmt.Sprintf("%d devices", m.nmux))
-	return b.Read(out)
+	var b = bytes.NewReader([]byte(fmt.Sprintf("%d devices", m.nmux)))
+	return b.ReadAt(out, addr)
 }
 
 func (m *muxclone) Pwrite(in []byte, addr int64) (int, error) {
