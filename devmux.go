@@ -13,6 +13,7 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -25,9 +26,8 @@ import (
 )
 
 type muxclone struct {
-	m    sync.Mutex
-	nmux int
-	ctl  []*muxctl
+	m   sync.Mutex
+	ctl []*muxctl
 }
 
 var (
@@ -36,8 +36,8 @@ var (
 )
 
 func (m *muxclone) Pread(out []byte, addr int64) (int, error) {
-	return -1, io.EOF
-	var b = bytes.NewReader([]byte(fmt.Sprintf("%d devices", m.nmux)))
+	return -1, fmt.Errorf("%v: muxclone read", m)
+	var b = bytes.NewReader([]byte(fmt.Sprintf("muxclone: %d devices", len(m.ctl))))
 	return b.ReadAt(out, addr)
 }
 
@@ -109,12 +109,18 @@ func (m *muxctl) String() string {
 
 // Pread reads mux information.
 func (m *muxctl) Pread(out []byte, addr int64) (int, error) {
-	return -1, io.EOF
 	m.m.Lock()
 	defer m.m.Unlock()
 	s := m.String()
 	b := bytes.NewReader([]byte(s))
-	return b.ReadAt(out, addr)
+	// Something, somewhere, is seeing an io.EOF and dropping data. dammit.
+	// Well, for now, we'll eat the extra message.
+	n, err := b.ReadAt(out, addr)
+	if errors.Is(err, io.EOF) && n > 0 {
+		err = nil
+	}
+	return n, err
+	//	return -1, fmt.Errorf("muxctl read %q %v %d into %d len buf @ %d n %v err %v", s, b, b.Len(), len(out), addr, n, err)
 }
 
 // Pwrite writes longwords to memory.
@@ -170,6 +176,7 @@ type muxdata struct {
 
 // Pread reads muxdata
 func (m *muxdata) Pread(out []byte, addr int64) (int, error) {
+	return -1, fmt.Errorf("muxdata read")
 	m.m.Lock()
 	defer m.m.Unlock()
 	return -1, fmt.Errorf("not yet")
