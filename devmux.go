@@ -70,32 +70,30 @@ func init() {
 		if false {
 			return nil, fmt.Errorf("locked")
 		}
-		i := mux.nmux
-		mux.nmux++
-		n := fmt.Sprintf("/dev/mux%dctl", i)
+		n := fmt.Sprintf("/dev/mux%dctl", len(mux.ctl))
 		if false {
 			return nil, fmt.Errorf(fmt.Sprintf("New dev %s", n))
+		}
+		m := &muxctl{num: uint(len(mux.ctl))}
+		mux.ctl = append(mux.ctl, m)
+		if false {
+			return nil, fmt.Errorf(fmt.Sprintf("cons'ed up dev %s", n))
 		}
 		// OK to here.
 		if err := syscall.MkDev(n, 0666, func() (syscall.DevFile, error) {
 			if false {
 				return nil, fmt.Errorf(fmt.Sprintf("open dev %s", n))
 			}
-			mux.m.Lock()
-			defer mux.m.Unlock()
-			if true {
+			m.m.Lock()
+			defer m.m.Unlock()
+			if false {
 				return nil, fmt.Errorf(fmt.Sprintf("dev %s locked", n))
-			}
-			m := &muxctl{num: uint(len(mux.ctl))}
-			mux.ctl = append(mux.ctl, m)
-			if true {
-				return nil, fmt.Errorf(fmt.Sprintf("cons'ed up dev %s", n))
 			}
 			return m, nil
 		}); err != nil {
 			return nil, fmt.Errorf("Can't set up %s: %w", n, err)
 		}
-		return mux, nil
+		return m, nil
 	}); err != nil {
 		log.Printf("Can't set up devmux: %v", err)
 	}
