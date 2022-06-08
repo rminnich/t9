@@ -1,0 +1,11 @@
+#!/bin/bash
+
+set -e
+set -x
+PATH=~/tamago/tamago-go/bin:$PATH 
+export TAMAGO=`pwd`/../tamago-go/bin/go 
+p9 10.1:564 l/dev
+p9 10.1:564 r/dev/muxclone
+echo 0x020e01e4 0x020e0470 0 | p9  10.1:564 w/dev/mux0ctl
+p9 10.1:564 l/dev
+echo -n 0 | p9  10.1:564 w/dev/mux0data
