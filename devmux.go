@@ -192,10 +192,16 @@ func (m *muxdata) Pread(out []byte, addr int64) (int, error) {
 func (m *muxdata) Pwrite(in []byte, addr int64) (int, error) {
 	m.m.Lock()
 	defer m.m.Unlock()
-	if len(in) == 0 {
-		return 0, nil
+	if len(in) != 1 {
+		return -1, fmt.Errorf(`usage: one-byte value, 0, 1, "0", "1", not %#x`, in)
 	}
-	return -1, fmt.Errorf("not yet")
+	switch in[0] {
+		case 0, byte('0'):
+		case 1, byte('1'):
+		default:
+			return -1, fmt.Errorf(`usage: 0, 1, "0", "1", not %#x`, in[0])
+	}
+	return len(in), nil
 
 }
 
