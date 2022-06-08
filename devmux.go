@@ -123,7 +123,7 @@ func (m *muxctl) Pread(out []byte, addr int64) (int, error) {
 	//	return -1, fmt.Errorf("muxctl read %q %v %d into %d len buf @ %d n %v err %v", s, b, b.Len(), len(out), addr, n, err)
 }
 
-// Pwrite writes longwords to memory.
+// Pwrite implements syscall.Pwrite
 func (m *muxctl) Pwrite(in []byte, addr int64) (int, error) {
 	m.m.Lock()
 	defer m.m.Unlock()
@@ -137,22 +137,28 @@ func (m *muxctl) Pwrite(in []byte, addr int64) (int, error) {
 	if len(f) != 3 {
 		return -1, fmt.Errorf("Usage: mux pad daisy")
 	}
+	if false {
+		return -1, fmt.Errorf("muxctl write %v", f)
+	}
 
 	for i, p := range []*uint32{&m.mux, &m.pad, &m.daisy} {
-		// the range seems to be 14 bits?
-		v, err := strconv.ParseUint(f[i+1], 0, 14)
+		// the range seems to be 26 bits?
+		v, err := strconv.ParseUint(f[i], 0, 26)
 		if err != nil {
 			return -1, err
 		}
 		*p = uint32(v)
 	}
 	p, err := imx6.NewPad(m.mux, m.pad, m.daisy)
+	if false {
+		return -1, fmt.Errorf("newpad %#x %#x %#x %v %v", m.mux, m.pad, m.daisy, p, err)
+	}
 
 	if err != nil {
 		return -1, err
 	}
 	m.ready = true
-	n := fmt.Sprintf("/dev/%dctl", m.num)
+	n := fmt.Sprintf("/dev/mux%ddata", m.num)
 	if err := syscall.MkDev(n, 0666, func() (syscall.DevFile, error) {
 		mux.m.Lock()
 		defer mux.m.Unlock()
