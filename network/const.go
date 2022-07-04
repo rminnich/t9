@@ -6,14 +6,11 @@
 // Use of this source code is governed by the license
 // that can be found in the LICENSE file.
 
-package main
+package network
 
-import (
-	_ "net/http/pprof"
-
-	"github.com/arl/statsviz"
+const (
+	deviceIP  = "10.0.0.1"
+	deviceMAC = "1a:55:89:a2:69:41"
+	hostMAC   = "1a:55:89:a2:69:42"
+	resolver  = "8.8.8.8:53"
 )
-
-func init() {
-	statsviz.RegisterDefault()
-}

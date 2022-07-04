@@ -6,11 +6,11 @@
 // Use of this source code is governed by the license
 // that can be found in the LICENSE file.
 
-package main
+package network
 
 import (
 	"log"
-	"time"
+	"os"
 
 	usbnet "github.com/usbarmory/imx-usbnet"
 	"github.com/usbarmory/tamago/soc/imx6/usb"
@@ -27,7 +27,7 @@ const (
 
 var iface *usbnet.Interface
 
-func startNetworking() {
+func Start(journalFile *os.File) {
 	var err error
 
 	iface, err = usbnet.Init(deviceIP, deviceMAC, hostMAC, 1)
@@ -65,18 +65,17 @@ func startNetworking() {
 	// create index.html
 	setupStaticWebAssets()
 
+	journal = journalFile
+
 	go func() {
-		// see ssh_server.go
 		startSSHServer(listenerSSH, deviceIP, 22)
 	}()
 
 	go func() {
-		// see web_server.go
 		startWebServer(listenerHTTP, deviceIP, 80, false)
 	}()
 
 	go func() {
-		// see web_server.go
 		startWebServer(listenerHTTPS, deviceIP, 443, true)
 	}()
 
@@ -90,28 +89,5 @@ func startNetworking() {
 	usb.USB1.Reset()
 
 	// never returns
-	usb.USB1.Start(iface.Device())
-}
-
-func resolve(s string) (r *dns.Msg, rtt time.Duration, err error) {
-	if s[len(s)-1:] != "." {
-		s += "."
-	}
-
-	msg := new(dns.Msg)
-	msg.Id = dns.Id()
-	msg.RecursionDesired = true
-
-	msg.Question = make([]dns.Question, 1)
-	msg.Question[0] = dns.Question{s, dns.TypeANY, dns.ClassINET}
-
-	conn := new(dns.Conn)
-
-	if conn.Conn, err = iface.DialTCP4(resolver); err != nil {
-		return
-	}
-
-	c := new(dns.Client)
-
-	return c.ExchangeWithConn(msg, conn)
+	imx6ul.USB1.Start(iface.Device())
 }
