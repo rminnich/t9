@@ -163,3 +163,7 @@ $(APP)-signed.imx: check_tamago check_hab_keys $(APP).imx
 		-i $(APP).imx \
 		-o $(APP).csf && \
 	cat $(APP).imx $(APP).csf > $(APP)-signed.imx
+
+# t9 stanzas
+boot: example.imx
+	sudo ~/bin/armory-boot-usb -i example.imx -t 30
