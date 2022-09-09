@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// +build !tamago
+
 package main
 
 import (
@@ -11,7 +13,6 @@ import (
 	"io"
 	"net"
 	"path/filepath"
-	"syscall"
 
 	"harvey-os.org/ninep/protocol"
 )
@@ -77,8 +78,29 @@ func open(f string) (*NineFile, error) {
 	return &NineFile{FID: fid, iounit: int(iounit), QID: q}, nil
 }
 
+func (n *NineFile) Open(f string) (T9, error) {
+	fid := niner.GetFID()
+	v("Open fid %d name %q", fid, f)
+	w, err := niner.client.CallTwalk(n.FID, fid, filepath.SplitList(f))
+	if err != nil {
+		return nil, err
+	}
+	v("Walk is %v", w)
+
+	q, iounit, err := niner.client.CallTopen(fid, 0)
+	if err != nil {
+		return nil, err
+	}
+	v("Open is %v %v", q, iounit)
+	return &NineFile{FID: fid, iounit: int(iounit), QID: q}, nil
+}
+
 func close(fid protocol.FID) error {
 	return niner.client.CallTclunk(fid)
+}
+
+func (n *NineFile) Close() error {
+	return close(n.FID)
 }
 
 func (n *NineFile) Pread(out []byte, off int64) (int, error) {
@@ -121,4 +143,4 @@ func (n *NineFile) Pwrite(dat []byte, off int64) (int, error) {
 	return tot, nil
 }
 
-var _ syscall.DevFile = &NineFile{}
+var _ T9 = &NineFile{}

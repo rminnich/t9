@@ -1,3 +1,7 @@
+// Copyright 2012-2017 the u-root Authors. All rights reserved
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 package main
 
 import (
@@ -10,10 +14,9 @@ import (
 	"harvey-os.org/ninep/protocol"
 )
 
-var v = func(string, ...interface{}) {}
-
 func main() {
 	var (
+		v      = func(string, ...interface{}) {}
 		logger = flag.Bool("l", false, "Enable client logging")
 		debug  = flag.Bool("d", false, "enable debug prints")
 		n      = flag.String("net", "tcp", "net type")
@@ -74,5 +77,4 @@ func main() {
 			}
 		}
 	}
-
 }
