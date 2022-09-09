@@ -7,7 +7,7 @@ export TAMAGO=`pwd`/../tamago-go/bin/go
 make CROSS_COMPILE=arm-none-eabi- TARGET=usbarmory imx
 
 which go
-go build -o t9 main_other.go  nine.go t9.go fn.go  #devgpio.go 
+(cd p9 && go build) #go build -o t9 main_other.go  nine.go t9.go fn.go  #devgpio.go 
 
 armory-boot-usb -i example.imx -t 400
 sudo ifconfig en8 10.0.0.2

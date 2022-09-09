@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build !tamago
 // +build !tamago
 
 package main
@@ -11,6 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net"
 	"path/filepath"
 
@@ -29,12 +31,7 @@ type NineFile struct {
 	iounit int
 }
 
-func attach(addr string) error {
-	conn, err := net.Dial("tcp", addr)
-	if err != nil {
-		return fmt.Errorf("dial server (%q, %q): %v", "tcp", addr, err)
-	}
-
+func attach(v func(string, ...interface{}), conn net.Conn, root string, opt ...protocol.ClientOpt) (*protocol.Client, error) {
 	v("attach %v", conn)
 	c, err := protocol.NewClient(func(c *protocol.Client) error {
 		c.FromNet, c.ToNet = conn, conn
@@ -46,19 +43,80 @@ func attach(addr string) error {
 			return nil
 		})
 	if err != nil {
-		return fmt.Errorf("%v", err)
+		return nil, fmt.Errorf("%v", err)
 	}
 	msize, vers, err := c.CallTversion(8000, "9P2000")
 	if err != nil {
-		return fmt.Errorf("CallTversion: want nil, got %v", err)
+		return nil, fmt.Errorf("CallTversion: want nil, got %v", err)
 	}
 	v("CallTversion: msize %v version %v", msize, vers)
-	if _, err := c.CallTattach(0, protocol.NOFID, "", "root"); err != nil {
-		return err
+	if _, err := c.CallTattach(0, protocol.NOFID, "", root); err != nil {
+		return nil, err
 	}
-	niner.conn = conn
-	niner.client = c
-	return nil
+	return c, nil
+}
+
+func read(v func(string, ...interface{}), root *protocol.Client, f string) ([]byte, error) {
+	rfid, fid := protocol.FID(0), root.GetFID()
+	v("Walk fid %d to %d name %q", rfid, fid, f)
+	w, err := root.CallTwalk(rfid, fid, filepath.SplitList(f))
+	if err != nil {
+		return nil, err
+	}
+	v("Walk is %v", w)
+
+	defer func(fid protocol.FID) {
+		if err := root.CallTclunk(fid); err != nil {
+			log.Printf("CallTclunk(%d) failed: %v", fid, err)
+		}
+	}(fid)
+
+	q, iounit, err := root.CallTopen(fid, 0)
+	if err != nil {
+		return nil, err
+	}
+	v("Open is %v %v", q, iounit)
+
+	var off int64
+	var out bytes.Buffer
+	for {
+		d, err := root.CallTread(fid, protocol.Offset(off), protocol.Count(iounit))
+		v("Reading got %d bytes @ %d", len(d), off)
+		if err != nil {
+			return out.Bytes(), err
+		}
+		if len(d) == 0 {
+			return out.Bytes(), nil
+		}
+		off += int64(len(d))
+		out.Write(d)
+	}
+	return out.Bytes(), nil
+}
+
+func readdir(v func(string, ...interface{}), root *protocol.Client, f string) ([]protocol.Dir, error) {
+	isdir, err := isDir(v, root, f)
+	if err != nil {
+		return nil, err
+	}
+	if !isdir {
+		// wtf OSX
+		return nil, fmt.Errorf("not a directory")
+	}
+	dat, err := read(v, root, f)
+	if err != nil {
+		return nil, err
+	}
+	b := bytes.NewBuffer(dat)
+	var ents []protocol.Dir
+	for b.Len() > 0 {
+		d, err := protocol.Unmarshaldir(b)
+		if err != nil {
+			return ents, err
+		}
+		ents = append(ents, d)
+	}
+	return ents, nil
 }
 
 func open(f string) (*NineFile, error) {
