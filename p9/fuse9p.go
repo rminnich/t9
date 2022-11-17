@@ -1,33 +1,37 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// Copyright 2012-2017 the u-root Authors. All rights reserved
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
 
-package session
+package main
 
 import (
 	"context"
+	"fmt"
 	"io/fs"
 	"log"
+	"net"
+
 	"os"
 	"sync/atomic"
 	"time"
 
-	"github.com/hugelgupf/p9/p9"
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
 	"github.com/jacobsa/syncutil"
+	"harvey-os.org/ninep/protocol"
 )
+
+var fid uint32
+
+func newFID() uint32 {
+	return sync.AddUint32(&fid, 1)
+}
+
+var ino uint64
+var newIno() uint64 {
+	return sync.AddUint64(&ino)
+}
 
 // Create a file system that issues cacheable responses according to the
 // following rules:
@@ -40,9 +44,31 @@ import (
 //
 //   - Nothing else is marked cacheable. (In particular, the attributes
 //     returned by LookUpInode are not cacheable.)
-func NewP9FS(cl *p9.Client, root p9.File, lookupEntryTimeout time.Duration, getattrTimeout time.Duration) (fuse.Server, *P9FS, error) {
+func NewP9FS(conn net.Conn, root string, lookupEntryTimeout time.Duration, getattrTimeout time.Duration) (fuse.Server, *P9FS, error) {
+	v("attach %v", conn)
+	c, err := protocol.NewClient(func(c *protocol.Client) error {
+		c.FromNet, c.ToNet = conn, conn
+		return nil
+	},
+		func(c *protocol.Client) error {
+			c.Msize = 8192
+			c.Trace = v
+			return nil
+		})
+	if err != nil {
+		return nil, nil, fmt.Errorf("%v", err)
+	}
+	msize, vers, err := c.CallTversion(8000, "9P2000")
+	if err != nil {
+		return nil, nil, fmt.Errorf("CallTversion: want nil, got %v", err)
+	}
+	v("CallTversion: msize %v version %v", msize, vers)
+	if _, err := c.CallTattach(0, protocol.NOFID, "", root); err != nil {
+		return nil, nil, err
+	}
+
 	cfs := &P9FS{
-		cl:                 cl,
+		cl:                 c,
 		lookupEntryTimeout: lookupEntryTimeout,
 		getattrTimeout:     getattrTimeout,
 		mtime:              time.Now(),
@@ -63,16 +89,17 @@ func NewP9FS(cl *p9.Client, root p9.File, lookupEntryTimeout time.Duration, geta
 }
 
 type entry struct {
-	fid      p9.File
+	file      protocol.File
+	fid protocol.FID
 	root     bool
-	QID      p9.QID
+	QID      protocol.QID
 	fullPath string
 	ino      uint64
 	refcount uint64
 }
 
 type openfile struct {
-	fid  p9.File
+	fid  protocol.File
 	unit int
 }
 
@@ -83,7 +110,7 @@ type P9FS struct {
 
 	lookupEntryTimeout time.Duration
 	getattrTimeout     time.Duration
-	cl                 *p9.Client
+	cl                 *protocol.Client
 
 	/////////////////////////
 	// Mutable state
@@ -167,7 +194,8 @@ func (p9fs *P9FS) LookUpInode(ctx context.Context, op *fuseops.LookUpInodeOp) er
 		return os.ErrNotExist
 	}
 
-	qids, f, _, a, err := cl.fid.WalkGetAttr([]string{op.Name})
+	w, err := cl.CallTwalk([]string{op.Name})
+
 	if err != nil {
 		//log.Panicf("walkgetattr: %v walking from %v in %d", err, cl, p)
 		return err
@@ -184,7 +212,9 @@ func (p9fs *P9FS) LookUpInode(ctx context.Context, op *fuseops.LookUpInodeOp) er
 	p9fs.inMap[fuseops.InodeID(ino)] = entry{
 		fid:  f,
 		root: false,
+
 		QID:  q,
+
 		ino:  ino,
 	}
 	/*
@@ -208,7 +238,7 @@ func (p9fs *P9FS) LookUpInode(ctx context.Context, op *fuseops.LookUpInodeOp) er
 		DataVersion      uint64
 	*/
 	var dir fs.FileMode
-	if q.Type&p9.TypeDir == p9.TypeDir {
+	if q.Type&protocol.QTDIR == protocol.QTDIR {
 		dir = os.ModeDir
 	}
 	//	var dt = ptype(q)
@@ -231,7 +261,7 @@ func (p9fs *P9FS) LookUpInode(ctx context.Context, op *fuseops.LookUpInodeOp) er
 	return nil
 }
 
-func ptype(q p9.QID) fuseutil.DirentType {
+func ptype(q protocol.QID) fuseutil.DirentType {
 	/*	DT_Unknown   DirentType = 0
 		DT_Socket    DirentType = syscall.DT_SOCK
 		DT_Link      DirentType = syscall.DT_LNK
@@ -242,7 +272,7 @@ func ptype(q p9.QID) fuseutil.DirentType {
 		DT_FIFO      DirentType = syscall.DT_FIFO
 	*/
 	switch {
-	case q.Type&p9.TypeDir == p9.TypeDir:
+	case q.Type&protocolQTDIR == protocol.QTDIR:
 		return fuseutil.DT_Directory
 		//	case q.Type.IsSocket(), q.Type.IsNamedPipe(), q.Type.IsCharacterDevice():
 		// Best approximation.
@@ -267,35 +297,7 @@ func (p9fs *P9FS) GetInodeAttributes(ctx context.Context, op *fuseops.GetInodeAt
 		return os.ErrNotExist
 	}
 
-	v("GetInodeAttributes for in %d cl %v", in, cl)
-	q, _, a, err := cl.fid.GetAttr(p9.AttrMaskAll)
-	if err != nil {
-		return err
-	}
-
-	var dir fs.FileMode
-	if q.Type&p9.TypeDir == p9.TypeDir {
-		dir = os.ModeDir
-	}
-	//	var dt = ptype(q)
-	attrs := fuseops.InodeAttributes{
-		Size:   a.Size,
-		Nlink:  uint32(a.NLink),
-		Mode:   dir | fs.FileMode(a.Mode),
-		Atime:  time.Now(),
-		Mtime:  time.Now(),
-		Ctime:  time.Now(),
-		Crtime: time.Now(),
-		Uid:    uint32(a.UID),
-		Gid:    uint32(a.GID),
-	}
-	op.Attributes = attrs
-	op.AttributesExpiration = time.Now().Add(p9fs.getattrTimeout)
-	v("GetInodeAttributes: OK")
-	// NOTE: if you get an EIO from this, it's usually b/c the ModeDir bit
-	// is wrong.
-	v("attr %v", attrs)
-	return nil
+	return errors.New("not yet")
 }
 
 // OpenDir implements OpenDir. N.B.: need to do a walk and open,
@@ -307,22 +309,21 @@ func (p9fs *P9FS) OpenDir(ctx context.Context, op *fuseops.OpenDirOp) error {
 		panic("NO file")
 		return os.ErrNotExist
 	}
-
-	_, f, err := cl.fid.Walk([]string{})
+	
+	q, iounit, err := root.CallTopen(fid, 0)
 	if err != nil {
-		panic("opendir walk")
-		return err
+		return nil, err
 	}
-	_, unit, err := f.Open(p9.ReadOnly)
 	if err != nil {
 		panic("opendir open")
 		return err
 	}
-	h := atomic.AddUint64(&p9fs.ino, 1)
+	h := newIno()
 	op.Handle = fuseops.HandleID(h)
 
 	p9fs.openfile[op.Handle] = openfile{
-		fid:  f,
+		file:  f,
+		FID: fid,
 		unit: int(unit),
 	}
 
@@ -365,6 +366,7 @@ func (fs *P9FS) ReadDir(ctx context.Context, op *fuseops.ReadDirOp) error {
 			Inode:  fuseops.InodeID(ent.QID.Path),
 			Name:   ent.Name,
 			Type:   dt,
+			Inode:  fuseops.InodeID(ent.QID.Path),
 		}
 		n := fuseutil.WriteDirent(op.Dst[tot:], fe)
 		tot += n
@@ -388,14 +390,15 @@ func (p9fs *P9FS) OpenFile(ctx context.Context, op *fuseops.OpenFileOp) error {
 		return os.ErrNotExist
 	}
 
+	fid := newFID()
 	// We walk because it is allowed to walk a file fid to another fid.
 	// Were we to open this fid, it would be breaking the rules.
-	_, f, err := cl.fid.Walk([]string{})
+	_, err := cl.CallTWalk(c.FID, fid, []string{})
 	if err != nil {
 		panic("openfile walk")
 		return err
 	}
-	_, unit, err := f.Open(p9.ReadOnly)
+	q, iouint, err := cl.CallTOpen(fid, 0)
 	if err != nil {
 		panic("openfile open")
 		return err
@@ -409,6 +412,31 @@ func (p9fs *P9FS) OpenFile(ctx context.Context, op *fuseops.OpenFileOp) error {
 		unit: int(unit),
 	}
 
+=======
+	/*
+		// We walk because it is allowed to walk a file fid to another fid.
+		// Were we to open this fid, it would be breaking the rules.
+		_, f, err := cl.fid.Walk([]string{})
+		if err != nil {
+			panic("openfile walk")
+			return err
+		}
+		_, unit, err := f.Open(ninep.ReadOnly)
+		if err != nil {
+			panic("openfile open")
+			return err
+		}
+
+		h := atomic.AddUint64(&p9fs.ino, 1)
+		op.Handle = fuseops.HandleID(h)
+
+		p9fs.openfile[op.Handle] = openfile{
+			fid:  f,
+			unit: int(unit),
+		}
+
+	*/
+>>>>>>> Stashed changes
 	op.KeepPageCache = p9fs.keepPageCache
 	return nil
 }

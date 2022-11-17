@@ -10,17 +10,21 @@ import (
 	"log"
 	"net"
 	"os"
+	"time"
 
 	"harvey-os.org/ninep/protocol"
 )
 
+var v = log.Printf
+
 func main() {
 	var (
-		v      = func(string, ...interface{}) {}
-		logger = flag.Bool("l", false, "Enable client logging")
-		debug  = flag.Bool("d", false, "enable debug prints")
-		n      = flag.String("net", "tcp", "net type")
-		aname  = flag.String("aname", "/", "attach name (i.e. root)")
+		v       = func(string, ...interface{}) {}
+		logger  = flag.Bool("l", false, "Enable client logging")
+		debug   = flag.Bool("d", false, "enable debug prints")
+		n       = flag.String("net", "tcp", "net type")
+		aname   = flag.String("aname", "/", "attach name (i.e. root)")
+		mountIt = flag.Bool("m", true, "mount the file system?")
 	)
 
 	flag.Parse()
@@ -41,7 +45,13 @@ func main() {
 	if err != nil {
 		log.Fatalf("dial server (%q, %q): %v", *n, addr, err)
 	}
-
+	// go ahead and mount it too. But we'll leave the option to use commands.
+	if *mountIt {
+		fgs, p, err := NewP9FS(conn, "/", time.Second, time.Second)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
 	root, err := attach(v, conn, *aname, opts...)
 	if err != nil {
 		log.Fatal(err)
