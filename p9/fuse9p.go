@@ -5,6 +5,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io/fs"
@@ -22,15 +23,10 @@ import (
 	"harvey-os.org/ninep/protocol"
 )
 
-var fid uint32
-
-func newFID() uint32 {
-	return sync.AddUint32(&fid, 1)
-}
-
 var ino uint64
-var newIno() uint64 {
-	return sync.AddUint64(&ino)
+
+func newIno() uint64 {
+	return atomic.AddUint64(&ino, 1)
 }
 
 // Create a file system that issues cacheable responses according to the
@@ -63,7 +59,8 @@ func NewP9FS(conn net.Conn, root string, lookupEntryTimeout time.Duration, getat
 		return nil, nil, fmt.Errorf("CallTversion: want nil, got %v", err)
 	}
 	v("CallTversion: msize %v version %v", msize, vers)
-	if _, err := c.CallTattach(0, protocol.NOFID, "", root); err != nil {
+	q, err := c.CallTattach(0, protocol.NOFID, "", root)
+	if err != nil {
 		return nil, nil, err
 	}
 
@@ -79,8 +76,8 @@ func NewP9FS(conn net.Conn, root string, lookupEntryTimeout time.Duration, getat
 	}
 
 	cfs.inMap[1] = entry{
-		fid:      root,
-		QID:      p9.QID{Path: 1},
+		fid:      0,
+		QID:      q,
 		root:     true,
 		fullPath: "/",
 		refcount: 1,
@@ -89,8 +86,7 @@ func NewP9FS(conn net.Conn, root string, lookupEntryTimeout time.Duration, getat
 }
 
 type entry struct {
-	file      protocol.File
-	fid protocol.FID
+	fid      protocol.FID
 	root     bool
 	QID      protocol.QID
 	fullPath string
@@ -99,7 +95,7 @@ type entry struct {
 }
 
 type openfile struct {
-	fid  protocol.File
+	fid  protocol.FID
 	unit int
 }
 
@@ -193,8 +189,8 @@ func (p9fs *P9FS) LookUpInode(ctx context.Context, op *fuseops.LookUpInodeOp) er
 		panic("NO parent")
 		return os.ErrNotExist
 	}
-
-	w, err := cl.CallTwalk([]string{op.Name})
+	fid := p9fs.cl.GetFID()
+	qids, err := p9fs.cl.CallTwalk(cl.fid, fid, []string{op.Name})
 
 	if err != nil {
 		//log.Panicf("walkgetattr: %v walking from %v in %d", err, cl, p)
@@ -202,19 +198,27 @@ func (p9fs *P9FS) LookUpInode(ctx context.Context, op *fuseops.LookUpInodeOp) er
 	}
 
 	q := qids[0]
-	ino := atomic.AddUint64(&p9fs.ino, 1)
+	ino := newIno()
 	i, ok := p9fs.inMap[fuseops.InodeID(ino)]
 	if ok {
-		log.Panicf("WTF? lookup %v and inumber %d was taken?", f, i)
+		log.Panicf("WTF? lookup  and inumber %d was taken?", i)
 	}
 	log.Printf("CPUD: at inmap: %v", i)
 
+	b, err := p9fs.cl.CallTstat(fid)
+	if err != nil {
+		return fmt.Errorf("CallTstat(%d) failed: %v", fid, err)
+	}
+
+	a, err := protocol.Unmarshaldir(bytes.NewBuffer(b))
+	if err != nil {
+		return err
+	}
+
 	p9fs.inMap[fuseops.InodeID(ino)] = entry{
-		fid:  f,
+		fid:  fid,
 		root: false,
-
 		QID:  q,
-
 		ino:  ino,
 	}
 	/*
@@ -238,19 +242,20 @@ func (p9fs *P9FS) LookUpInode(ctx context.Context, op *fuseops.LookUpInodeOp) er
 		DataVersion      uint64
 	*/
 	var dir fs.FileMode
+	nlink := uint32(1)
 	if q.Type&protocol.QTDIR == protocol.QTDIR {
 		dir = os.ModeDir
+		nlink = 2 // ., ..
 	}
-	//	var dt = ptype(q)
 	attrs := fuseops.InodeAttributes{
-		Size:  a.Size,
-		Nlink: uint32(a.NLink),
+		Size:  a.Length,
+		Nlink: nlink,
 		Mode:  dir | fs.FileMode(a.Mode),
-		Atime: time.Unix(int64(a.ATimeSeconds), int64(a.ATimeNanoSeconds)),
-		Mtime: time.Unix(int64(a.MTimeSeconds), int64(a.MTimeNanoSeconds)),
-		Ctime: time.Unix(int64(a.CTimeSeconds), int64(a.CTimeNanoSeconds)),
-		Uid:   uint32(a.UID),
-		Gid:   uint32(a.GID),
+		Atime: time.Unix(int64(a.Atime), 0),
+		Mtime: time.Unix(int64(a.Mtime), 0),
+		Ctime: time.Unix(0, 0),
+		Uid:   0,
+		Gid:   0,
 	}
 	v("attrs %#x", attrs)
 	// Fill in the response.
@@ -272,7 +277,7 @@ func ptype(q protocol.QID) fuseutil.DirentType {
 		DT_FIFO      DirentType = syscall.DT_FIFO
 	*/
 	switch {
-	case q.Type&protocolQTDIR == protocol.QTDIR:
+	case q.Type&protocol.QTDIR == protocol.QTDIR:
 		return fuseutil.DT_Directory
 		//	case q.Type.IsSocket(), q.Type.IsNamedPipe(), q.Type.IsCharacterDevice():
 		// Best approximation.
@@ -297,7 +302,7 @@ func (p9fs *P9FS) GetInodeAttributes(ctx context.Context, op *fuseops.GetInodeAt
 		return os.ErrNotExist
 	}
 
-	return errors.New("not yet")
+	return fmt.Errorf("not yet on %v", cl)
 }
 
 // OpenDir implements OpenDir. N.B.: need to do a walk and open,
@@ -309,21 +314,16 @@ func (p9fs *P9FS) OpenDir(ctx context.Context, op *fuseops.OpenDirOp) error {
 		panic("NO file")
 		return os.ErrNotExist
 	}
-	
-	q, iounit, err := root.CallTopen(fid, 0)
+
+	_, unit, err := p9fs.cl.CallTopen(cl.fid, 0)
 	if err != nil {
-		return nil, err
-	}
-	if err != nil {
-		panic("opendir open")
 		return err
 	}
 	h := newIno()
 	op.Handle = fuseops.HandleID(h)
 
 	p9fs.openfile[op.Handle] = openfile{
-		file:  f,
-		FID: fid,
+		fid:  cl.fid,
 		unit: int(unit),
 	}
 
@@ -339,16 +339,33 @@ func (fs *P9FS) ReadDir(ctx context.Context, op *fuseops.ReadDirOp) error {
 	}
 
 	// The offset is determined by the rather arbitrary value from 9p.
-	off := op.Offset
+	var off int64
+	var out bytes.Buffer
+	for {
+		d, err := fs.cl.CallTread(cl.fid, protocol.Offset(off), protocol.Count(cl.unit))
+		v("Reading got %d bytes @ %d", len(d), off)
+		if err != nil {
+			return err
+		}
+		if len(d) == 0 {
+			return err
+		}
+		off += int64(len(d))
+		out.Write(d)
+	}
 
-	d, err := cl.fid.Readdir(uint64(off), uint32(cl.unit))
-	if err != nil {
-		panic("NO readdir")
-		return err
+	b := bytes.NewBuffer(out.Bytes())
+	var ents []protocol.Dir
+	for b.Len() > 0 {
+		d, err := protocol.Unmarshaldir(b)
+		if err != nil {
+			return err
+		}
+		ents = append(ents, d)
 	}
 
 	var tot int
-	for _, ent := range d {
+	for i, ent := range ents {
 		// you get QID, Offset, Type, and Name.
 		/*	DT_Unknown   DirentType = 0
 			DT_Socket    DirentType = syscall.DT_SOCK
@@ -362,11 +379,10 @@ func (fs *P9FS) ReadDir(ctx context.Context, op *fuseops.ReadDirOp) error {
 		var dt = ptype(ent.QID)
 
 		fe := fuseutil.Dirent{
-			Offset: fuseops.DirOffset(ent.Offset),
+			Offset: fuseops.DirOffset(i),
 			Inode:  fuseops.InodeID(ent.QID.Path),
 			Name:   ent.Name,
 			Type:   dt,
-			Inode:  fuseops.InodeID(ent.QID.Path),
 		}
 		n := fuseutil.WriteDirent(op.Dst[tot:], fe)
 		tot += n
@@ -390,29 +406,27 @@ func (p9fs *P9FS) OpenFile(ctx context.Context, op *fuseops.OpenFileOp) error {
 		return os.ErrNotExist
 	}
 
-	fid := newFID()
+	fid := p9fs.cl.GetFID()
 	// We walk because it is allowed to walk a file fid to another fid.
 	// Were we to open this fid, it would be breaking the rules.
-	_, err := cl.CallTWalk(c.FID, fid, []string{})
+	_, err := p9fs.cl.CallTwalk(cl.fid, fid, []string{})
 	if err != nil {
 		panic("openfile walk")
 		return err
 	}
-	q, iouint, err := cl.CallTOpen(fid, 0)
+	q, iounit, err := p9fs.cl.CallTopen(fid, 0)
 	if err != nil {
 		panic("openfile open")
 		return err
 	}
 
-	h := atomic.AddUint64(&p9fs.ino, 1)
-	op.Handle = fuseops.HandleID(h)
+	op.Handle = fuseops.HandleID(q.Path)
 
 	p9fs.openfile[op.Handle] = openfile{
-		fid:  f,
-		unit: int(unit),
+		fid:  fid,
+		unit: int(iounit),
 	}
 
-=======
 	/*
 		// We walk because it is allowed to walk a file fid to another fid.
 		// Were we to open this fid, it would be breaking the rules.
@@ -436,7 +450,7 @@ func (p9fs *P9FS) OpenFile(ctx context.Context, op *fuseops.OpenFileOp) error {
 		}
 
 	*/
->>>>>>> Stashed changes
+
 	op.KeepPageCache = p9fs.keepPageCache
 	return nil
 }
@@ -457,8 +471,10 @@ func (fs *P9FS) ReadFile(ctx context.Context, op *fuseops.ReadFileOp) error {
 		dst = make([]byte, op.Size)
 		op.Data = [][]byte{dst}
 	}
-	amt, err := cl.fid.ReadAt(dst, off)
-	op.BytesRead = amt
+	dat, err := fs.cl.CallTread(cl.fid, protocol.Offset(off), protocol.Count(op.Size))
+	if dat != nil {
+		copy(dst, dat)
+	}
 
 	return err
 }
@@ -553,7 +569,7 @@ func (fs *P9FS) ReleaseDirHandle(ctx context.Context, op *fuseops.ReleaseDirHand
 		return nil
 	}
 	delete(fs.openfile, ha)
-	return cl.fid.Close()
+	return fs.cl.CallTclunk(cl.fid)
 }
 
 func (fs *P9FS) WriteFile(ctx context.Context, op *fuseops.WriteFileOp) error {
@@ -578,7 +594,7 @@ func (fs *P9FS) ReleaseFileHandle(ctx context.Context, op *fuseops.ReleaseFileHa
 		return nil
 	}
 	delete(fs.openfile, ha)
-	return cl.fid.Close()
+	return fs.cl.CallTclunk(cl.fid)
 }
 
 func (fs *P9FS) ReadSymlink(ctx context.Context, op *fuseops.ReadSymlinkOp) error {

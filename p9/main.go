@@ -47,10 +47,11 @@ func main() {
 	}
 	// go ahead and mount it too. But we'll leave the option to use commands.
 	if *mountIt {
-		fgs, p, err := NewP9FS(conn, "/", time.Second, time.Second)
+		fs, p, err := NewP9FS(conn, "/", time.Second, time.Second)
 		if err != nil {
 			log.Fatal(err)
 		}
+		v("fs: %v, %v, %v", fs, p, err)
 	}
 	root, err := attach(v, conn, *aname, opts...)
 	if err != nil {
