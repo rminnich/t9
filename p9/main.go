@@ -24,7 +24,7 @@ func main() {
 		debug   = flag.Bool("d", false, "enable debug prints")
 		n       = flag.String("net", "tcp", "net type")
 		aname   = flag.String("aname", "/", "attach name (i.e. root)")
-		mountIt = flag.Bool("m", true, "mount the file system?")
+		mountIt = flag.Bool("m", false, "mount the file system?")
 	)
 
 	flag.Parse()

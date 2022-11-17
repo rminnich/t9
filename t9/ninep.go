@@ -1,0 +1,57 @@
+// Copyright 2012 the u-root Authors. All rights reserved
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package main
+
+import (
+	"fmt"
+	"log"
+	"net"
+
+	"harvey-os.org/ninep/protocol"
+)
+
+type ninep struct {
+	cl   *protocol.Client
+	net  string
+	addr string
+	root string
+}
+
+var _ T9 = &ninep{}
+
+func NewNinep(netname, addr, root string, opt ...protocol.ClientOpt) (*ninep, error) {
+	conn, err := net.Dial(netname, addr)
+	if err != nil {
+		log.Fatalf("dial server (%q, %q): %v", netname, addr, err)
+	}
+	v("attach %v", conn)
+	c, err := protocol.NewClient(func(c *protocol.Client) error {
+		c.FromNet, c.ToNet = conn, conn
+		return nil
+	},
+		func(c *protocol.Client) error {
+			c.Msize = 8192
+			c.Trace = v
+			return nil
+		})
+	if err != nil {
+		return nil, fmt.Errorf("%v", err)
+	}
+	msize, vers, err := c.CallTversion(8000, "9P2000")
+	if err != nil {
+		return nil, fmt.Errorf("CallTversion: want nil, got %v", err)
+	}
+	v("CallTversion: msize %v version %v", msize, vers)
+	if _, err := c.CallTattach(0, protocol.NOFID, "", root); err != nil {
+		return nil, err
+	}
+	return &ninep{
+		cl:   c,
+		net:  netname,
+		addr: addr,
+		root: root,
+	}, nil
+
+}
