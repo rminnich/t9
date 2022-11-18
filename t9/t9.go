@@ -6,17 +6,12 @@ package t9
 
 import "os"
 
-// Meta is the interface for operations on metadata
-// These operations work whether the file is open
-// or not.
-type Meta interface {
-}
-
 // FS is the file system interface. Its primary function
 // is to gain access to files.
 type FS interface {
-	Open(name string) (*IO, error)
-	Stat() (os.FileInfo, error)
+	Open(name string) (IO, error)
+	Stat(name string) (*os.FileInfo, error)
+	Close() error
 }
 
 // IO is the interface for IO on files.

@@ -24,7 +24,13 @@ type ninep struct {
 	dent protocol.Dir
 }
 
-var _ = &ninep{}
+type file struct {
+	fid  protocol.FID
+	name string
+}
+
+var _ FS = &ninep{}
+var _ IO = &file{}
 
 func NewNinep(netname, addr, root string, opt ...protocol.ClientOpt) (*ninep, error) {
 	conn, err := net.Dial(netname, addr)
@@ -72,4 +78,24 @@ func NewNinep(netname, addr, root string, opt ...protocol.ClientOpt) (*ninep, er
 		dent: d,
 	}, nil
 
+}
+
+func (n *ninep) Close() error {
+	return nil
+}
+
+func (n *ninep) Open(name string) (IO, error) {
+	return nil, fmt.Errorf("open: not yet")
+}
+
+func (n *ninep) Stat(name string) (*os.FileInfo, error) {
+	return nil, fmt.Errorf("stat: not yet")
+}
+
+func (f *file) ReadAt([]byte, int64) (int, error) {
+	return -1, fmt.Errorf("readat: not yet")
+}
+
+func (f *file) WriteAt([]byte, int64) (int, error) {
+	return -1, fmt.Errorf("writeat: not yet")
 }

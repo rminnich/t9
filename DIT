@@ -9,7 +9,7 @@ make CROSS_COMPILE=arm-none-eabi- TARGET=usbarmory boot
 which go
 # this build step gives network time to come up
 # the real action seems to be in p9 now
-(cd p9 && go build) #go build -o t9 main_other.go  nine.go t9.go fn.go  #devgpio.go 
+(cd ./p9 && go build) #go build -o t9 main_other.go  nine.go t9.go fn.go  #devgpio.go 
 
 sleep 2
 sudo ifconfig en8 10.0.0.2
