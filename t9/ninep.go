@@ -10,6 +10,7 @@ import (
 	"log"
 	"net"
 	"os"
+	"path/filepath"
 
 	"harvey-os.org/ninep/protocol"
 )
@@ -25,8 +26,10 @@ type ninep struct {
 }
 
 type file struct {
-	fid  protocol.FID
-	name string
+	fid    protocol.FID
+	qid    protocol.QID
+	iounit protocol.MaxSize
+	name   string
 }
 
 var _ FS = &ninep{}
@@ -84,8 +87,29 @@ func (n *ninep) Close() error {
 	return nil
 }
 
-func (n *ninep) Open(name string) (IO, error) {
-	return nil, fmt.Errorf("open: not yet")
+// Open implements os.Open. Always take abs paths,
+// the Tamago environment is not complex enough
+// to warrant anything else.
+func (root *ninep) Open(name string) (IO, error) {
+	rfid, fid := root.fid, root.cl.GetFID()
+	v("Walk fid %d to %d name %q", rfid, fid, name)
+	w, err := root.cl.CallTwalk(rfid, fid, filepath.SplitList(name))
+	if err != nil {
+		return nil, err
+	}
+	v("Walk is %v", w)
+
+	q, iounit, err := root.cl.CallTopen(fid, 0)
+	if err != nil {
+		return nil, err
+	}
+	v("Open is %v %v", q, iounit)
+	return &file{
+		fid:    fid,
+		qid:    q,
+		iounit: iounit,
+		name:   name,
+	}, nil
 }
 
 func (n *ninep) Stat(name string) (*os.FileInfo, error) {
