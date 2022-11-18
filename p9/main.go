@@ -47,6 +47,7 @@ func main() {
 	}
 	// go ahead and mount it too. But we'll leave the option to use commands.
 	if *mountIt {
+		log.Fatal("Not supported yet")
 		fs, p, err := NewP9FS(conn, "/", time.Second, time.Second)
 		if err != nil {
 			log.Fatal(err)
