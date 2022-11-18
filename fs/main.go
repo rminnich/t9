@@ -40,6 +40,10 @@ func open(f forth.Forth) {
 	f.Push(c)
 }
 
+// read up to 8k of data, starting at 0.
+// For now, files are so small that we don't bother with a loop.
+// That's cheap insurance against someone doing something
+// foolish.
 func read(f forth.Forth) {
 	forth.Debug("read")
 	g := f.Pop().(t9.IO)
@@ -111,36 +115,5 @@ func main() {
 		if err := forth.EvalString(f, arg); err != nil {
 			fmt.Printf("%v\n", err)
 		}
-		/*
-			op, f := arg[0], arg[1:]
-			switch op {
-			default:
-				log.Fatalf("%v unknown; only r or w", op)
-			case 'r':
-				b, err := read(v, root, f)
-				if err != nil {
-					log.Printf("Reading %v: got (%v, %v)", f, b, err)
-					continue
-				}
-				os.Stdout.Write(b)
-				// l is like r save we assume dirents.
-			case 'w':
-				n, err := write(v, root, f, os.Stdin)
-				if err != nil {
-					log.Printf("Writing %v: got (%v, %v)", f, n, err)
-					continue
-				}
-				// l is like r save we assume dirents.
-			case 'l':
-				ents, err := readdir(v, root, f)
-				if err != nil {
-					log.Printf("%v:%v", f, err)
-					continue
-				}
-				for _, d := range ents {
-					fmt.Printf("%v\n", d)
-				}
-			}
-		*/
 	}
 }

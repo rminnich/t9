@@ -117,8 +117,37 @@ func (root *ninep) Open(name string) (IO, error) {
 	}, nil
 }
 
-func (n *ninep) Stat(name string) (*os.FileInfo, error) {
-	return nil, fmt.Errorf("stat: not yet")
+func (root *ninep) Stat(name string) (os.FileInfo, error) {
+	rfid, fid := root.fid, root.cl.GetFID()
+	v("Walk fid %d to %d name %q", rfid, fid, name)
+	w, err := root.cl.CallTwalk(rfid, fid, filepath.SplitList(name))
+	if err != nil {
+		return nil, fmt.Errorf("%v: walk fid %d to %v: %v", root.cl, fid, name, err)
+	}
+	v("Walk is %v", w)
+	defer func(fid protocol.FID) {
+		if err := root.cl.CallTclunk(fid); err != nil {
+			log.Printf("CallTclunk(%d) failed: %v", fid, err)
+		}
+	}(fid)
+	v("Walk is %v", w)
+	b, err := root.cl.CallTstat(fid)
+	if err != nil {
+		return nil, fmt.Errorf("CallTstat(%d) failed: %v", fid, err)
+	}
+
+	d, err := protocol.Unmarshaldir(bytes.NewBuffer(b))
+	if err != nil {
+		return nil, err
+	}
+
+	return &file{
+		fid:  fid,
+		qid:  w[len(w)-1],
+		name: name,
+		root: root,
+		dent: d,
+	}, nil
 }
 
 func (f *file) ReadAt(b []byte, off int64) (int, error) {

@@ -10,7 +10,7 @@ import "os"
 // is to gain access to files.
 type FS interface {
 	Open(name string) (IO, error)
-	Stat(name string) (*os.FileInfo, error)
+	Stat(name string) (os.FileInfo, error)
 	Close() error
 }
 
