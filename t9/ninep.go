@@ -7,10 +7,12 @@ package t9
 import (
 	"bytes"
 	"fmt"
+	"io/fs"
 	"log"
 	"net"
 	"os"
 	"path/filepath"
+	"time"
 
 	"harvey-os.org/ninep/protocol"
 )
@@ -30,6 +32,8 @@ type file struct {
 	qid    protocol.QID
 	iounit protocol.MaxSize
 	name   string
+	dent   protocol.Dir
+	root   *ninep
 }
 
 var _ FS = &ninep{}
@@ -109,6 +113,7 @@ func (root *ninep) Open(name string) (IO, error) {
 		qid:    q,
 		iounit: iounit,
 		name:   name,
+		root:   root,
 	}, nil
 }
 
@@ -116,10 +121,43 @@ func (n *ninep) Stat(name string) (*os.FileInfo, error) {
 	return nil, fmt.Errorf("stat: not yet")
 }
 
-func (f *file) ReadAt([]byte, int64) (int, error) {
-	return -1, fmt.Errorf("readat: not yet")
+func (f *file) ReadAt(b []byte, off int64) (int, error) {
+	d, err := f.root.cl.CallTread(f.fid, protocol.Offset(off), protocol.Count(f.iounit))
+	v("Reading got %d bytes @ %d", len(d), off)
+	if err != nil {
+		return -1, err
+	}
+	n := copy(b, d)
+	return n, nil
 }
 
 func (f *file) WriteAt([]byte, int64) (int, error) {
 	return -1, fmt.Errorf("writeat: not yet")
 }
+
+// implement fs.FileInfo
+func (f *file) Name() string {
+	return f.name
+}
+
+func (f *file) Size() int64 {
+	return int64(f.dent.Length)
+}
+
+func (f *file) Mode() fs.FileMode {
+	return fs.FileMode(f.dent.Mode).Perm()
+}
+
+func (f *file) ModTime() time.Time {
+	return time.Unix(int64(f.dent.Mtime), 0)
+}
+
+func (f *file) IsDir() bool {
+	return fs.FileMode(f.dent.Mode).IsDir()
+}
+
+func (f *file) Sys() any {
+	return &f.dent
+}
+
+var _ fs.FileInfo = &file{}

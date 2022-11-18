@@ -40,6 +40,25 @@ func open(f forth.Forth) {
 	f.Push(c)
 }
 
+func read(f forth.Forth) {
+	forth.Debug("read")
+	g := f.Pop().(t9.IO)
+	f.Push(g)
+	forth.Debug("%v", g)
+	var b [8192]byte
+	n, err := g.ReadAt(b[:], 0)
+	if err != nil {
+		panic(fmt.Sprintf("%v", err))
+	}
+	f.Push(b[:n])
+}
+
+func toString(f forth.Forth) {
+	forth.Debug("string")
+	g := f.Pop().([]byte)
+	f.Push(string(g))
+}
+
 func main() {
 	var (
 		v      = func(string, ...interface{}) {}
@@ -81,6 +100,8 @@ func main() {
 		},
 		},
 		{name: "open", op: open},
+		{name: "read", op: read},
+		{name: "string", op: toString},
 	} {
 		forth.Putop(o.name, o.op)
 	}
