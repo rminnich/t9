@@ -5,9 +5,11 @@
 package t9
 
 import (
+	"bytes"
 	"fmt"
 	"log"
 	"net"
+	"os"
 
 	"harvey-os.org/ninep/protocol"
 )
@@ -17,9 +19,12 @@ type ninep struct {
 	net  string
 	addr string
 	root string
+	fid  protocol.FID
+	fi   os.FileInfo
+	dent protocol.Dir
 }
 
-var _ FS = &ninep{}
+var _ = &ninep{}
 
 func NewNinep(netname, addr, root string, opt ...protocol.ClientOpt) (*ninep, error) {
 	conn, err := net.Dial(netname, addr)
@@ -47,11 +52,24 @@ func NewNinep(netname, addr, root string, opt ...protocol.ClientOpt) (*ninep, er
 	if _, err := c.CallTattach(0, protocol.NOFID, "", root); err != nil {
 		return nil, err
 	}
+	var fid protocol.FID
+	// It should be possible to stat the root.
+	b, err := c.CallTstat(fid)
+	if err != nil {
+		return nil, fmt.Errorf("CallTstat(%d) failed: %v", fid, err)
+	}
+
+	d, err := protocol.Unmarshaldir(bytes.NewBuffer(b))
+	if err != nil {
+		return nil, err
+	}
+
 	return &ninep{
 		cl:   c,
 		net:  netname,
 		addr: addr,
 		root: root,
+		dent: d,
 	}, nil
 
 }
