@@ -95,13 +95,13 @@ func (root *ninep) Open(name string) (IO, error) {
 	v("Walk fid %d to %d name %q", rfid, fid, name)
 	w, err := root.cl.CallTwalk(rfid, fid, filepath.SplitList(name))
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%v: walk fid %d to %v: %v", root.cl, fid, name, err)
 	}
 	v("Walk is %v", w)
 
 	q, iounit, err := root.cl.CallTopen(fid, 0)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%v: open fid %d for %v: %v", root.cl, fid, name, err)
 	}
 	v("Open is %v %v", q, iounit)
 	return &file{
