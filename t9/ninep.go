@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package main
+package t9
 
 import (
 	"fmt"
@@ -19,7 +19,7 @@ type ninep struct {
 	root string
 }
 
-var _ T9 = &ninep{}
+var _ FS = &ninep{}
 
 func NewNinep(netname, addr, root string, opt ...protocol.ClientOpt) (*ninep, error) {
 	conn, err := net.Dial(netname, addr)

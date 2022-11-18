@@ -1,13 +1,20 @@
-package main
+// Copyright 2022 the u-root Authors. All rights reserved
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
 
-import "io/fs"
+package t9
 
-type T9 interface {
-	Open(name string) (T9, error)
+import "os"
+
+type FS interface {
+	Open(name string) (*File, error)
+}
+
+type File interface {
+	Stat() (os.FileInfo, error)
+	ReadAt([]byte, int64) (int, error)
+	WriteAt([]byte, int64) (int, error)
 	Close() error
-	Pread(out []byte, off int64) (int, error)
-	Pwrite(dat []byte, off int64) (int, error)
-	Readdir(off int64) (fs.FileInfo, error)
 }
 
 var v = func(string, ...interface{}) {}
