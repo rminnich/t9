@@ -17,6 +17,8 @@ import (
 	"strings"
 	"text/tabwriter"
 
+	"github.com/u-root/u-root/pkg/forth"
+	"github.com/usbarmory/tamago-example/t9"
 	"golang.org/x/term"
 )
 
@@ -38,9 +40,12 @@ type Cmd struct {
 	Fn      CmdFn
 }
 
-var Banner string
-var cmds = make(map[string]*Cmd)
-var console io.ReadWriter
+var (
+	Banner        string
+	cmds          = make(map[string]*Cmd)
+	console       io.ReadWriter
+	ErrUnknownCmd = errors.New("unknown command, type `help`")
+)
 
 func Add(cmd Cmd) {
 	cmds[cmd.Name] = &cmd
@@ -94,11 +99,11 @@ func handle(term *term.Terminal, line string) (err error) {
 	}
 
 	if match == nil {
-		return errors.New("unknown command, type `help`")
+		return ErrUnknownCmd
 	}
 
 	if res, err = match.Fn(term, arg); err != nil {
-		return
+		return ErrUnknownCmd
 	}
 
 	fmt.Fprintln(term, res)
@@ -109,7 +114,17 @@ func handle(term *term.Terminal, line string) (err error) {
 func Handler(term *term.Terminal) {
 	fmt.Fprintf(term, "%s\n\n", Banner)
 	fmt.Fprintf(term, "%s\n", Help(term))
-
+	log.Printf("NO t9 for you")
+	var f forth.Forth
+	err := errors.New("NO")
+	if false {
+	go func() {
+		f, err = t9.New("tcp", "127.0.0.1:564", "/")
+	}()
+	}
+	if err != nil {
+		log.Printf("No forth for you! %v", err)
+	}
 	for {
 		s, err := term.ReadLine()
 
@@ -122,13 +137,23 @@ func Handler(term *term.Terminal) {
 			continue
 		}
 
-		if err = handle(term, s); err != nil {
-			if err == io.EOF {
-				break
+		if err = Handle(term, s); err != nil {
+			if errors.Is(err, ErrUnknownCmd) && f != nil {
+
+				for _, arg := range strings.Fields(s) {
+					fmt.Printf("%sOK\n", f.Stack())
+					if err := forth.EvalString(f, arg); err != nil {
+						fmt.Printf("%v\n", err)
+					}
+				}
 			}
 
-			log.Printf("command error: %v", err)
 		}
+		if err == io.EOF {
+			break
+		}
+
+		log.Printf("command error: %v", err)
 	}
 }
 

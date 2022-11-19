@@ -40,7 +40,7 @@ var _ FS = &ninep{}
 var _ IO = &file{}
 
 func NewNinep(netname, addr, root string, opt ...protocol.ClientOpt) (*ninep, error) {
-	conn, err := net.Dial(netname, addr)
+	conn, err := net.DialTimeout(netname, addr, 5 * time.Second)
 	if err != nil {
 		log.Fatalf("dial server (%q, %q): %v", netname, addr, err)
 	}
