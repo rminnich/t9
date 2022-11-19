@@ -114,13 +114,19 @@ func handle(term *term.Terminal, line string) (err error) {
 func Handler(term *term.Terminal) {
 	fmt.Fprintf(term, "%s\n\n", Banner)
 	fmt.Fprintf(term, "%s\n", Help(term))
-	log.Printf("NO t9 for you")
 	var f forth.Forth
 	err := errors.New("NO")
 	if false {
-	go func() {
-		f, err = t9.New("tcp", "127.0.0.1:564", "/")
-	}()
+		go func() {
+			f, err = t9.New(func() (t9.FS, error) {
+				return t9.NewNinep("tcp", "127.0.0.1:564", "/")
+			})
+		}()
+	}
+	if true {
+		f, err = t9.New(func() (t9.FS, error) {
+			return t9.NewNativeFS("/")
+		})
 	}
 	if err != nil {
 		log.Printf("No forth for you! %v", err)

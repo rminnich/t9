@@ -10,7 +10,6 @@ import (
 	"log"
 
 	"github.com/u-root/u-root/pkg/forth"
-	"harvey-os.org/ninep/protocol"
 )
 
 // The great panic discussion.
@@ -78,9 +77,10 @@ func toString(f forth.Forth) {
 	}
 }
 
-func New(net, addr, aname string) (forth.Forth, error) {
-	var opts []protocol.ClientOpt
-	root, err := NewNinep(net, addr, aname, opts...)
+type Connect func() (FS, error)
+
+func New(c Connect) (forth.Forth, error) {
+	root, err := c()
 	if err != nil {
 		return nil, err
 	}
