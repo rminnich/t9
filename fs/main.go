@@ -11,6 +11,7 @@ import (
 	"os"
 
 	"github.com/u-root/u-root/pkg/forth"
+	"github.com/usbarmory/tamago-example/t9"
 )
 
 func main() {
@@ -34,7 +35,7 @@ func main() {
 		log.Fatalf("usage: %s ipaddr [commands]", os.Args[0])
 	}
 	addr := a[0]
-	f, err := New(*n, addr, *aname)
+	f, err := t9.New(*n, addr, *aname)
 	if err != nil {
 		log.Fatal(err)
 	}
