@@ -4,13 +4,13 @@
 
 package t9
 
-import "os"
+import "io/fs"
 
 // FS is the file system interface. Its primary function
 // is to gain access to files.
 type FS interface {
 	Open(name string) (IO, error)
-	Stat(name string) (os.FileInfo, error)
+	Stat(name string) (fs.FileInfo, error)
 	Close() error
 }
 

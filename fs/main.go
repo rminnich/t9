@@ -7,6 +7,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io/fs"
 	"log"
 	"os"
 
@@ -40,6 +41,18 @@ func open(f forth.Forth) {
 	f.Push(c)
 }
 
+func stat(f forth.Forth) {
+	forth.Debug("stat")
+	g := f.Pop().(string)
+	forth.Debug("%v", g)
+	r := f.Pop().(t9.FS)
+	c, err := r.Stat(g)
+	if err != nil {
+		panic(fmt.Sprintf("%v", err))
+	}
+	f.Push(c)
+}
+
 // read up to 8k of data, starting at 0.
 // For now, files are so small that we don't bother with a loop.
 // That's cheap insurance against someone doing something
@@ -59,8 +72,17 @@ func read(f forth.Forth) {
 
 func toString(f forth.Forth) {
 	forth.Debug("string")
-	g := f.Pop().([]byte)
-	f.Push(string(g))
+	g := f.Pop()
+	switch v := g.(type) {
+	case []byte:
+		f.Push(string(v))
+	default:
+		if v, ok := g.(fs.FileInfo); ok {
+			f.Push(fmt.Sprintf("%s: %v, %d bytes", v.Name(), v.Mode(), v.Size()))
+			return
+		}
+		f.Push(fmt.Sprintf("Don't know how to string %T", v))
+	}
 }
 
 func main() {
@@ -105,6 +127,7 @@ func main() {
 		},
 		{name: "open", op: open},
 		{name: "read", op: read},
+		{name: "stat", op: stat},
 		{name: "string", op: toString},
 	} {
 		forth.Putop(o.name, o.op)
