@@ -25,6 +25,8 @@ func main() {
 		n       = flag.String("net", "tcp", "net type")
 		aname   = flag.String("aname", "/", "attach name (i.e. root)")
 		mountIt = flag.Bool("m", false, "mount the file system?")
+		offset  = flag.Int64("offset", 0, "offset in file")
+		size    = flag.Int("size", 4, "amount to read")
 	)
 
 	flag.Parse()
@@ -64,7 +66,7 @@ func main() {
 		default:
 			log.Fatalf("%v unknown; only r or w", op)
 		case 'r':
-			b, err := read(v, root, f)
+			b, err := read(v, root, f, *size, *offset)
 			if err != nil {
 				log.Printf("Reading %v: got (%v, %v)", f, b, err)
 				continue

@@ -13,7 +13,7 @@ import (
 	"harvey-os.org/ninep/protocol"
 )
 
-func read(v func(string, ...interface{}), root *protocol.Client, f string) ([]byte, error) {
+func read(v func(string, ...interface{}), root *protocol.Client, f string, size int, off int64) ([]byte, error) {
 	rfid, fid := protocol.FID(0), root.GetFID()
 	v("Walk fid %d to %d name %q", rfid, fid, f)
 	w, err := root.CallTwalk(rfid, fid, filepath.SplitList(f))
@@ -34,10 +34,13 @@ func read(v func(string, ...interface{}), root *protocol.Client, f string) ([]by
 	}
 	v("Open is %v %v", q, iounit)
 
-	var off int64
 	var out bytes.Buffer
-	for {
-		d, err := root.CallTread(fid, protocol.Offset(off), protocol.Count(iounit))
+	for size > 0 {
+		amt := int(iounit)
+		if amt > size {
+			amt = size
+		}
+		d, err := root.CallTread(fid, protocol.Offset(off), protocol.Count(amt))
 		v("Reading got %d bytes @ %d", len(d), off)
 		if err != nil {
 			return out.Bytes(), err
@@ -47,6 +50,7 @@ func read(v func(string, ...interface{}), root *protocol.Client, f string) ([]by
 		}
 		off += int64(len(d))
 		out.Write(d)
+		size -= len(d)
 	}
 	return out.Bytes(), nil
 }
@@ -60,7 +64,7 @@ func readdir(v func(string, ...interface{}), root *protocol.Client, f string) ([
 		// wtf OSX
 		return nil, fmt.Errorf("not a directory")
 	}
-	dat, err := read(v, root, f)
+	dat, err := read(v, root, f, 1<<20, 0)
 	if err != nil {
 		return nil, err
 	}
