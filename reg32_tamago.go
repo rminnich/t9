@@ -15,12 +15,20 @@
 package main
 
 import (
+	"bytes"
+	"encoding/binary"
+	"errors"
+	"fmt"
+	"io"
 	"log"
 	"runtime"
+	"strings"
 	"sync/atomic"
 	"syscall"
 	"time"
 	"unsafe"
+
+	"github.com/usbarmory/tamago/board/usbarmory/mk2"
 )
 
 func Get(addr uint32, pos int, mask int) uint32 {
@@ -168,10 +176,83 @@ func (f reg32File) close() error {
 	return nil
 }
 
+var ErrNotAligned = errors.New("Not aligned")
+
+func check(size int, offset int64) error {
+	// The offset must be aligned x4
+	if (offset & 3) != 0 {
+		return fmt.Errorf("offset %#x: %w", ErrNotAligned)
+	}
+	// The size must be aligned x4
+	if (size & 3) != 0 {
+		return fmt.Errorf("size %#x: %w", ErrNotAligned)
+	}
+	return nil
+}
+
 func (f reg32File) Pread(b []byte, offset int64) (int, error) {
+	if err := check(len(b), offset); err != nil {
+		return -1, err
+	}
+	var longs = make([]uint32, len(b)/4)
+	// read them from the registers ...
+	binary.Write(bytes.NewBuffer(b), binary.LittleEndian, longs)
+
 	return len(b), nil
 }
 
 func (f reg32File) Pwrite(b []byte, offset int64) (int, error) {
-	return 0, syscall.EPERM
+	if err := check(len(b), offset); err != nil {
+		return -1, err
+	}
+	var longs = make([]uint32, len(b)/4)
+	binary.Read(bytes.NewBuffer(b), binary.LittleEndian, longs)
+	return len(b), nil
+}
+
+type ledFile struct {
+	blue, white string
+}
+
+var leds = &ledFile{
+	blue:  "on",
+	white: "on",
+}
+
+func init() {
+	syscall.MkDev("/dev/led", 0666, openled)
+}
+
+func openled() (syscall.DevFile, error) {
+	return leds, nil
+}
+
+func (f ledFile) Close() error {
+	return nil
+}
+
+func (f ledFile) Pread(b []byte, offset int64) (int, error) {
+	n, err := bytes.NewReader([]byte(fmt.Sprintf(`{"blue": %q,"white": %q}`, f.blue, f.white))).ReadAt(b, offset)
+	if err == io.EOF && n > 0 {
+		err = nil
+	}
+	return n, err
+}
+
+func (f ledFile) Pwrite(b []byte, offset int64) (int, error) {
+	cmd := strings.Fields(string(b))
+	if len(cmd) != 2 {
+		return -1, fmt.Errorf("usage: blue|white on|off")
+	}
+	var onoff bool
+	switch cmd[1] {
+	case "on":
+		onoff = true
+	case "off":
+	default:
+		return -1, fmt.Errorf("usage: blue|white on|off")
+	}
+	err := mk2.LED(cmd[0], onoff)
+	return len(b), err
+
 }
