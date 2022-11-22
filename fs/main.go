@@ -35,7 +35,9 @@ func main() {
 		log.Fatalf("usage: %s ipaddr [commands]", os.Args[0])
 	}
 	addr := a[0]
-	f, err := t9.New(*n, addr, *aname)
+	f, err := t9.New(func() (t9.FS, error) {
+		return t9.NewNinep(*n, addr, *aname)
+	})
 	if err != nil {
 		log.Fatal(err)
 	}
