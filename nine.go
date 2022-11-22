@@ -136,7 +136,7 @@ func open(f string) (*NineFile, error) {
 	return &NineFile{FID: fid, iounit: int(iounit), QID: q}, nil
 }
 
-func (n *NineFile) Open(f string) (T9, error) {
+func (n *NineFile) Open(f string) (T9IO, error) {
 	fid := niner.GetFID()
 	v("Open fid %d name %q", fid, f)
 	w, err := niner.client.CallTwalk(n.FID, fid, filepath.SplitList(f))
@@ -201,4 +201,4 @@ func (n *NineFile) Pwrite(dat []byte, off int64) (int, error) {
 	return tot, nil
 }
 
-var _ T9 = &NineFile{}
+var _ T9IO = &NineFile{}
