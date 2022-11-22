@@ -12,13 +12,11 @@
 // This package is only meant to be used with `GOOS=tamago GOARCH=arm` as
 // supported by the TamaGo framework for bare metal Go on ARM SoCs, see
 // https://github.com/usbarmory/tamago.
-package gpio
+package t9
 
 import (
 	"errors"
 	"fmt"
-
-	"github.com/usbarmory/tamago/internal/reg"
 )
 
 // GPIO registers
@@ -39,6 +37,8 @@ type GPIO struct {
 	CG int
 
 	clk bool
+
+	reg *reg
 }
 
 // Pin instance
@@ -46,10 +46,11 @@ type Pin struct {
 	num  int
 	data uint32
 	dir  uint32
+	gpio *GPIO
 }
 
 // Init initializes a GPIO.
-func (hw *GPIO) Init(num int) (gpio *Pin, err error) {
+func (hw *GPIO) Init(num int) (*Pin, error) {
 	if hw.Base == 0 || hw.CCGR == 0 {
 		return nil, errors.New("invalid GPIO controller instance")
 	}
@@ -58,42 +59,43 @@ func (hw *GPIO) Init(num int) (gpio *Pin, err error) {
 		return nil, fmt.Errorf("invalid GPIO number %d", num)
 	}
 
-	gpio = &Pin{
+	pin := &Pin{
 		num:  num,
 		data: hw.Base + GPIO_DR,
 		dir:  hw.Base + GPIO_GDIR,
+		gpio: hw,
 	}
 
 	if !hw.clk {
 		// enable clock
-		reg.SetN(hw.CCGR, hw.CG, 0b11, 0b11)
+		pin.gpio.reg.SetN(hw.CCGR, hw.CG, 0b11, 0b11)
 		hw.clk = true
 	}
 
-	return
+	return pin, nil
 }
 
-// Out configures a GPIO as output.
-func (gpio *Pin) Out() {
-	reg.Set(gpio.dir, gpio.num)
+// Out configures a PIN as output.
+func (pin *Pin) Out() {
+	pin.gpio.reg.Set(pin.dir, pin.num)
 }
 
-// In configures a GPIO as input.
-func (gpio *Pin) In() {
-	reg.Clear(gpio.dir, gpio.num)
+// In configures a PIN as input.
+func (pin *Pin) In() {
+	pin.gpio.reg.Clear(pin.dir, pin.num)
 }
 
-// High configures a GPIO signal as high.
-func (gpio *Pin) High() {
-	reg.Set(gpio.data, gpio.num)
+// High configures a PIN signal as high.
+func (pin *Pin) High() {
+	pin.gpio.reg.Set(pin.data, pin.num)
 }
 
-// Low configures a GPIO signal as low.
-func (gpio *Pin) Low() {
-	reg.Clear(gpio.data, gpio.num)
+// Low configures a PIN signal as low.
+func (pin *Pin) Low() {
+	pin.gpio.reg.Clear(pin.data, pin.num)
 }
 
-// Value returns the GPIO signal level.
-func (gpio *Pin) Value() (high bool) {
-	return reg.Get(gpio.data, gpio.num, 1) == 1
+// Value returns the PIN signal level.
+func (pin *Pin) Value() (high bool) {
+	return pin.gpio.reg.Get(pin.data, pin.num, 1) == 1
 }
