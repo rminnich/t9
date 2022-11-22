@@ -210,3 +210,6 @@ These source files are distributed under the BSD-style license found in the
 The TamaGo logo is adapted from the Go gopher designed by Renee French and
 licensed under the Creative Commons 3.0 Attributions license. Go Gopher vector
 illustration by Hugo Arganda.
+
+#
+This is extended for t9. see p9/ for basic 9p access and fs/ for forth fs. t9 is the kernel.
