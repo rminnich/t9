@@ -19,6 +19,16 @@ import (
 // But parsers are special: using panic
 // in a parser makes the code tons cleaner.
 
+func pushReg(f forth.Forth) {
+	forth.Debug("pushReg")
+	r := f.Pop().(FS)
+	c, err := NewReg(r)
+	if err != nil {
+		panic(fmt.Sprintf("%v", err))
+	}
+	f.Push(c)
+}
+
 // Note that if any type asserts fail the forth interpret loop catches
 // it. It also catches stack underflow, all that stuff.
 func open(f forth.Forth) {
@@ -88,7 +98,7 @@ func toString(f forth.Forth) {
 			f.Push(fmt.Sprintf("%s: %v, %d bytes", v.Name(), v.Mode(), v.Size()))
 			return
 		}
-		f.Push(fmt.Sprintf("Don't know how to string %T", v))
+		f.Push(fmt.Sprintf("Don't know how to string %T: best try:%v", v, v))
 	}
 }
 
@@ -115,6 +125,7 @@ func New(c Connect) (forth.Forth, error) {
 		{name: "open", op: open},
 		{name: "read", op: read},
 		{name: "write", op: write},
+		{name: "reg", op: pushReg},
 		{name: "stat", op: stat},
 		{name: "string", op: toString},
 	} {
