@@ -7,6 +7,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"os"
 
@@ -21,6 +22,7 @@ func main() {
 		debug  = flag.Bool("d", false, "enable debug prints")
 		n      = flag.String("net", "tcp", "net type")
 		aname  = flag.String("aname", "/", "attach name (i.e. root)")
+		interactive = flag.Bool("i", false, "go to interactive")
 	)
 
 	flag.Parse()
@@ -45,6 +47,21 @@ func main() {
 	for _, arg := range a[1:] {
 		fmt.Printf("%sOK\n", f.Stack())
 		if err := forth.EvalString(f, arg); err != nil {
+			fmt.Printf("%v\n", err)
+		}
+	}
+	b := make([]byte, 8192, 8192)
+	for *interactive {
+		fmt.Printf("%sOK\n", f.Stack())
+		n, err := os.Stdin.Read(b)
+		if err != nil {
+			if err != io.EOF {
+				log.Fatal(err)
+			}
+			// Silently exit on EOF. It's the unix way.
+			break
+		}
+		if err := forth.EvalString(f, string(b[:n])); err != nil {
 			fmt.Printf("%v\n", err)
 		}
 	}
