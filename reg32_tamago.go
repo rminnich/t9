@@ -211,20 +211,27 @@ func (f reg32File) Pwrite(b []byte, offset int64) (int, error) {
 }
 
 type ledFile struct {
-	blue, white string
+	color string
+	onoff string
+	lasterror error
 }
 
-var leds = &ledFile{
-	blue:  "on",
-	white: "on",
+var leds = []*ledFile{
+	&ledFile{color: "white", onoff: "on"},
+	&ledFile{color: "blue", onoff: "on"},
 }
 
 func init() {
-	syscall.MkDev("/dev/led", 0666, openled)
+	syscall.MkDev("/dev/white", 0666, openwhite)
+	syscall.MkDev("/dev/blue", 0666, openblue)
 }
 
-func openled() (syscall.DevFile, error) {
-	return leds, nil
+func openwhite() (syscall.DevFile, error) {
+	return leds[0], nil
+}
+
+func openblue() (syscall.DevFile, error) {
+	return leds[1], nil
 }
 
 func (f ledFile) Close() error {
@@ -232,7 +239,7 @@ func (f ledFile) Close() error {
 }
 
 func (f ledFile) Pread(b []byte, offset int64) (int, error) {
-	n, err := bytes.NewReader([]byte(fmt.Sprintf(`{"blue": %q,"white": %q}`, f.blue, f.white))).ReadAt(b, offset)
+	n, err := bytes.NewReader([]byte(fmt.Sprintf(`{"color": %q,"state": %q, "lasterror": %v}`, f.color, f.onoff, f.lasterror))).ReadAt(b, offset)
 	if err == io.EOF && n > 0 {
 		err = nil
 	}
@@ -240,19 +247,26 @@ func (f ledFile) Pread(b []byte, offset int64) (int, error) {
 }
 
 func (f ledFile) Pwrite(b []byte, offset int64) (int, error) {
+	f.lasterror = fmt.Errorf("%v: %q", f, string(b))
 	cmd := strings.Fields(string(b))
-	if len(cmd) != 2 {
+	if len(cmd) != 1 {
+		f.lasterror = fmt.Errorf("%q:%q usage: on|off", f.color, string(b))
 		return -1, fmt.Errorf("usage: blue|white on|off")
 	}
 	var onoff bool
-	switch cmd[1] {
+	switch cmd[0] {
 	case "on":
 		onoff = true
 	case "off":
 	default:
-		return -1, fmt.Errorf("usage: blue|white on|off")
+		f.lasterror = fmt.Errorf("%q:%q usage: on|off", f.color, string(b))
+		log.Printf("%q:%q usage: on|off", f.color, string(b))
+		return -1, fmt.Errorf("%q:%q usage: on|off", f.color, string(b))
 	}
-	err := mk2.LED(cmd[0], onoff)
+	err := mk2.LED(f.color, onoff)
+	if err != nil {
+		log.Printf("%q:%q mk2.LED: %v", f.color, string(b), err)
+		f.lasterror = fmt.Errorf("%q:%q mk2.LED: %v", f.color, string(b), err)
+	}
 	return len(b), err
-
 }
