@@ -40,7 +40,7 @@ var _ FS = &ninep{}
 var _ IO = &file{}
 
 func NewNinep(netname, addr, root string, opt ...protocol.ClientOpt) (*ninep, error) {
-	conn, err := net.DialTimeout(netname, addr, 5 * time.Second)
+	conn, err := net.DialTimeout(netname, addr, 5*time.Second)
 	if err != nil {
 		log.Fatalf("dial server (%q, %q): %v", netname, addr, err)
 	}
@@ -103,7 +103,7 @@ func (root *ninep) Open(name string) (IO, error) {
 	}
 	v("Walk is %v", w)
 
-	q, iounit, err := root.cl.CallTopen(fid, 0)
+	q, iounit, err := root.cl.CallTopen(fid, 2)
 	if err != nil {
 		return nil, fmt.Errorf("%v: open fid %d for %v: %v", root.cl, fid, name, err)
 	}
@@ -160,8 +160,10 @@ func (f *file) ReadAt(b []byte, off int64) (int, error) {
 	return n, nil
 }
 
-func (f *file) WriteAt([]byte, int64) (int, error) {
-	return -1, fmt.Errorf("writeat: not yet")
+func (f *file) WriteAt(b []byte, off int64) (int, error) {
+	n, err := f.root.cl.CallTwrite(f.fid, protocol.Offset(off), b)
+	v("Wrieing got %d bytes @ %d", n, off)
+	return int(n), err
 }
 
 // implement fs.FileInfo
