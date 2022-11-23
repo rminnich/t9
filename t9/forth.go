@@ -62,12 +62,27 @@ func read(f forth.Forth) {
 	f.Push(b[:n])
 }
 
+// write the string at TOS
+func write(f forth.Forth) {
+	forth.Debug("write")
+	toString(f)
+	b := f.Pop().(string)
+	g := f.Pop().(IO)
+	f.Push(g)
+	log.Printf("=========> Write %q", b)
+	if _, err := g.WriteAt([]byte(b), 0); err != nil {
+		panic(fmt.Sprintf("%v", err))
+	}
+}
+
 func toString(f forth.Forth) {
 	forth.Debug("string")
 	g := f.Pop()
 	switch v := g.(type) {
 	case []byte:
 		f.Push(string(v))
+	case string:
+		f.Push(v)
 	default:
 		if v, ok := g.(fs.FileInfo); ok {
 			f.Push(fmt.Sprintf("%s: %v, %d bytes", v.Name(), v.Mode(), v.Size()))
@@ -99,6 +114,7 @@ func New(c Connect) (forth.Forth, error) {
 		},
 		{name: "open", op: open},
 		{name: "read", op: read},
+		{name: "write", op: write},
 		{name: "stat", op: stat},
 		{name: "string", op: toString},
 	} {
