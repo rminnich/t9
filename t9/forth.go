@@ -110,6 +110,7 @@ func New(c Connect) (forth.Forth, error) {
 		return nil, err
 	}
 	v("Attached %v", root)
+
 	f := forth.New()
 	forth.Debug = log.Printf
 
@@ -131,5 +132,18 @@ func New(c Connect) (forth.Forth, error) {
 	} {
 		forth.Putop(o.name, o.op)
 	}
+
+	// Now attach all devices ...
+	r, err := NewReg(root)
+	if err != nil {
+		log.Printf("non-fatal: %v", err)
+		return f, nil
+	}
+	// Clean this up for later.
+	// The trick is the hierarchy of needs ...
+	GPIO4.reg = r
+
+	// Now get a pin. Let's try an LED.
+
 	return f, nil
 }
