@@ -2,7 +2,7 @@
 
 set -e
 set -x
-PATH=~/Documents/tamago/tamago-go/bin:$PATH 
+PATH=`pwd`/../tamago-go/bin:$PATH
 export TAMAGO=`pwd`/../tamago-go/bin/go 
 make CROSS_COMPILE=arm-none-eabi- TARGET=usbarmory boot
 
