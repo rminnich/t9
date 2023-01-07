@@ -221,8 +221,8 @@ type ledFile struct {
 }
 
 var leds = []*ledFile{
-	&ledFile{color: "white", onoff: "on", f: {offset: 0}},
-	&ledFile{color: "blue", onoff: "on", f: {offset: 0}},
+	&ledFile{color: "white", onoff: "on", f: reg32File{offset: 0}},
+	&ledFile{color: "blue", onoff: "on", f: reg32File{offset: 0}},
 }
 
 func init() {

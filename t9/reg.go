@@ -24,6 +24,19 @@ import (
 	"time"
 )
 
+// HACK because you can have Read/ReadAt, but not Write/WriteAt
+// annoying that this is still not a thing.
+type w struct {
+	off int64
+	f   IO
+}
+
+func (w *w) Write(b []byte) (int, error) {
+	return w.f.WriteAt(b, w.off)
+}
+
+// end HACK, just ignore it.
+
 type reg struct {
 	name string
 	fd   IO
@@ -47,16 +60,6 @@ func (r *reg) Read(addr uint32) uint32 {
 	}
 
 	return l
-}
-
-// annoying that this is still not a thing.
-type w struct {
-	off int64
-	f   IO
-}
-
-func (w *w) Write(b []byte) (int, error) {
-	return w.f.WriteAt(b, w.off)
 }
 
 func (r *reg) Write(addr uint32, val uint32) {

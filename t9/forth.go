@@ -105,6 +105,7 @@ func toString(f forth.Forth) {
 type Connect func() (FS, error)
 
 func New(c Connect) (forth.Forth, error) {
+	// Get a connection to the FS for the name space.
 	root, err := c()
 	if err != nil {
 		return nil, err
@@ -141,6 +142,8 @@ func New(c Connect) (forth.Forth, error) {
 	}
 	// Clean this up for later.
 	// The trick is the hierarchy of needs ...
+	// wtf did I mean by that. Anyway, this sets up GPIO4 to be
+	// read and written.
 	GPIO4.reg = r
 
 	// Now get a pin. Let's try an LED.
