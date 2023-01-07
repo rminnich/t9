@@ -160,7 +160,10 @@ func WaitSignal(done chan bool, addr uint32, pos int, mask int, val uint32) bool
 	return true
 }
 
-type reg32File struct{}
+// reg32File represents a single, 32-bit-aligned, 32-bit-sized, register.
+type reg32File struct {
+	offset uint32
+}
 
 func init() {
 	log.Printf("=======> t9 device reg32")
@@ -211,14 +214,15 @@ func (f reg32File) Pwrite(b []byte, offset int64) (int, error) {
 }
 
 type ledFile struct {
-	color string
-	onoff string
+	f         reg32File
+	color     string
+	onoff     string
 	lasterror error
 }
 
 var leds = []*ledFile{
-	&ledFile{color: "white", onoff: "on"},
-	&ledFile{color: "blue", onoff: "on"},
+	&ledFile{color: "white", onoff: "on", f: {offset: 0}},
+	&ledFile{color: "blue", onoff: "on", f: {offset: 0}},
 }
 
 func init() {
@@ -263,7 +267,9 @@ func (f ledFile) Pwrite(b []byte, offset int64) (int, error) {
 		log.Printf("%q:%q usage: on|off", f.color, string(b))
 		return -1, fmt.Errorf("%q:%q usage: on|off", f.color, string(b))
 	}
+
 	err := mk2.LED(f.color, onoff)
+
 	if err != nil {
 		log.Printf("%q:%q mk2.LED: %v", f.color, string(b), err)
 		f.lasterror = fmt.Errorf("%q:%q mk2.LED: %v", f.color, string(b), err)

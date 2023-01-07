@@ -1,0 +1,11 @@
+IO is the interface for read and write.
+
+It is implemented as a p9, direct file, or direct memory write.
+
+So we need to connect reg to IO and we should be there.
+
+see t9/reg.go: that part is done.
+
+This needs /dev/reg32, and that is implemented as well.
+
+So for LED, what remains, is to read and write the reg32, and set the bit.
