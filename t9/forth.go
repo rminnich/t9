@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io/fs"
 	"log"
+	"strconv"
 
 	"github.com/u-root/u-root/pkg/forth"
 )
@@ -87,14 +88,25 @@ func write(f forth.Forth) {
 
 func pin(f forth.Forth) {
 	forth.Debug("pin")
-	i := f.Pop().(int)
+	i := f.Pop().(string)
+	pno, err := strconv.Atoi(i)
+	if err != nil {
+		panic(fmt.Errorf("convering %s to pin:%w", i, err))
+	}
 	g := f.Pop().(*GPIO)
 	f.Push(g)
-	p, err := g.Init(i)
+	p, err := g.Init(pno)
 	if err != nil {
 		panic(err)
 	}
 	f.Push(p)
+}
+
+func value(f forth.Forth) {
+	forth.Debug("value")
+	p := f.Pop().(*Pin)
+	f.Push(p)
+	f.Push(p.Value())
 }
 
 func toString(f forth.Forth) {
@@ -161,6 +173,7 @@ func New(c Connect) (forth.Forth, error) {
 		{name: "pin", op: pin},
 		{name: "stat", op: stat},
 		{name: "string", op: toString},
+		{name: "value", op: value},
 	} {
 		forth.Putop(o.name, o.op)
 	}

@@ -52,7 +52,7 @@ func main() {
 	}
 	b := make([]byte, 8192, 8192)
 	for *interactive {
-		fmt.Printf("%sOK\n", f.Stack())
+		fmt.Printf("%vOK\n", f.Stack())
 		n, err := os.Stdin.Read(b)
 		if err != nil {
 			if err != io.EOF {
