@@ -85,6 +85,18 @@ func write(f forth.Forth) {
 	}
 }
 
+func pin(f forth.Forth) {
+	forth.Debug("pin")
+	i := f.Pop().(int)
+	g := f.Pop().(*GPIO)
+	f.Push(g)
+	p, err := g.Init(i)
+	if err != nil {
+		panic(err)
+	}
+	f.Push(p)
+}
+
 func toString(f forth.Forth) {
 	forth.Debug("string")
 	g := f.Pop()
@@ -112,6 +124,19 @@ func New(c Connect) (forth.Forth, error) {
 	}
 	v("Attached %v", root)
 
+	// Now attach all devices ...
+	r, err := NewReg(root)
+	if err != nil {
+		log.Printf("non-fatal: %v", err)
+		return nil, nil
+	}
+
+	// Clean this up for later.
+	// The trick is the hierarchy of needs ...
+	// wtf did I mean by that. Anyway, this sets up GPIO4 to be
+	// read and written.
+	GPIO4.reg = r
+
 	f := forth.New()
 	forth.Debug = log.Printf
 
@@ -124,29 +149,21 @@ func New(c Connect) (forth.Forth, error) {
 			f.Push(root)
 		},
 		},
+		{name: "gpio4", op: func(f forth.Forth) {
+			forth.Debug("gpio4")
+			f.Push(GPIO4)
+		},
+		},
 		{name: "open", op: open},
 		{name: "read", op: read},
 		{name: "write", op: write},
 		{name: "reg", op: pushReg},
+		{name: "pin", op: pin},
 		{name: "stat", op: stat},
 		{name: "string", op: toString},
 	} {
 		forth.Putop(o.name, o.op)
 	}
-
-	// Now attach all devices ...
-	r, err := NewReg(root)
-	if err != nil {
-		log.Printf("non-fatal: %v", err)
-		return f, nil
-	}
-	// Clean this up for later.
-	// The trick is the hierarchy of needs ...
-	// wtf did I mean by that. Anyway, this sets up GPIO4 to be
-	// read and written.
-	GPIO4.reg = r
-
-	// Now get a pin. Let's try an LED.
 
 	return f, nil
 }
