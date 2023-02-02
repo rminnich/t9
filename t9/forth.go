@@ -161,6 +161,17 @@ func New(c Connect) (forth.Forth, error) {
 			f.Push(root)
 		},
 		},
+		{name: "create", op: func(f forth.Forth) {
+			forth.Debug("create")
+			for _, c := range creators {
+				if d, err := c(root, r); err != nil {
+					log.Printf("%v:%v", c, err)
+				} else {
+					log.Printf("%v:%v", c, d)
+				}
+			}
+		},
+		},
 		{name: "gpio4", op: func(f forth.Forth) {
 			forth.Debug("gpio4")
 			f.Push(GPIO4)

@@ -4,12 +4,15 @@
 
 package t9
 
-import "io/fs"
+import (
+	"io/fs"
+	"syscall"
+)
 
 // FS is the file system interface. Its primary function
 // is to gain access to files.
 type FS interface {
-	Open(name string) (IO, error)
+	Open(name string) (syscall.DevFile, error)
 	Stat(name string) (fs.FileInfo, error)
 	Close() error
 }
@@ -23,7 +26,7 @@ type IO interface {
 // REGIO is the interface for IO on files.
 type REGIO interface {
 	Read(int64) (uint32, error)
-	Write(int64) (error)
+	Write(int64) error
 }
 
 // Closer is for files that can/must be closed.
