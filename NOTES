@@ -9,3 +9,32 @@ see t9/reg.go: that part is done.
 This needs /dev/reg32, and that is implemented as well.
 
 So for LED, what remains, is to read and write the reg32, and set the bit.
+
+reg32_tamago.go has the blue and white. What is missing so far is the
+register offset for read/write
+
+	usbarmory.LED(arg[0], on) should be where we find it.
+	also see func (f reg32File) Pread(b []byte, offset int64) (int, error) {
+
+the reg32File has no file yet. Seems it needs to have an IO? But for now, Pread
+can just do the open, read, close.
+
+The basic path
+
+at top level, in init, we make files e.g. /dev/white
+
+at top level, we open those files
+
+we do IO on those files. the *file is provided by the os.OpenFile. It is passed in. This will give us access to the private date, provided
+by the function that was used in MkDev.
+
+OH HO. In the led driver, we should open /dev/reg32, duh.
+
+
+t9/reg.go is the t9 version of reg32_tamago.go
+
+OK
+the drivers don't call syscall.mkdev
+rather, at init, they register a function:
+func Creator(func() FS) error
+once the startup has created the FS, it calls this function, which in turn will register the drivers, so they have a function to call to get the current FS.
