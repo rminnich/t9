@@ -8,6 +8,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"syscall"
 	"time"
 )
 
@@ -21,7 +22,6 @@ type nativefile struct {
 }
 
 var _ FS = &nfs{}
-var _ IO = &nativefile{}
 
 func NewNativeFS(root string) (*nfs, error) {
 	return &nfs{root: root}, nil
@@ -34,7 +34,8 @@ func (*nfs) Close() error {
 // Open implements os.Open. Always take abs paths,
 // the Tamago environment is not complex enough
 // to warrant anything else.
-func (root *nfs) Open(name string) (IO, error) {
+func (root *nfs) Open(name string) (syscall.DevFile, error) {
+	need translatro
 	return os.Open(filepath.Join(root.root, name))
 }
 

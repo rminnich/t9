@@ -9,6 +9,7 @@ import (
 	"io/fs"
 	"log"
 	"strconv"
+	"syscall"
 
 	"github.com/u-root/u-root/pkg/forth"
 )
@@ -62,11 +63,11 @@ func stat(f forth.Forth) {
 // foolish.
 func read(f forth.Forth) {
 	forth.Debug("read")
-	g := f.Pop().(IO)
+	g := f.Pop().(syscall.DevFile)
 	f.Push(g)
 	forth.Debug("%v", g)
 	var b [8192]byte
-	n, err := g.ReadAt(b[:], 0)
+	n, err := g.Pread(b[:], 0)
 	if err != nil {
 		panic(fmt.Sprintf("%v", err))
 	}
@@ -78,10 +79,10 @@ func write(f forth.Forth) {
 	forth.Debug("write")
 	toString(f)
 	b := f.Pop().(string)
-	g := f.Pop().(IO)
+	g := f.Pop().(syscall.DevFile)
 	f.Push(g)
 	log.Printf("=========> Write %q", b)
-	if _, err := g.WriteAt([]byte(b), 0); err != nil {
+	if _, err := g.Pwrite([]byte(b), 0); err != nil {
 		panic(fmt.Sprintf("%v", err))
 	}
 }
@@ -164,10 +165,8 @@ func New(c Connect) (forth.Forth, error) {
 		{name: "create", op: func(f forth.Forth) {
 			forth.Debug("create")
 			for _, c := range creators {
-				if d, err := c(root, r); err != nil {
+				if err := c(root, r); err != nil {
 					log.Printf("%v:%v", c, err)
-				} else {
-					log.Printf("%v:%v", c, d)
 				}
 			}
 		},

@@ -17,7 +17,6 @@ package t9
 import (
 	"encoding/binary"
 	"fmt"
-	"io"
 	"log"
 	"math"
 	"runtime"
@@ -29,11 +28,11 @@ import (
 // annoying that this is still not a thing.
 type w struct {
 	off int64
-	f   IO
+	f   syscall.DevFile
 }
 
 func (w *w) Write(b []byte) (int, error) {
-	return w.f.WriteAt(b, w.off)
+	return w.f.Pwrite(b, w.off)
 }
 
 // end HACK, just ignore it.
@@ -41,10 +40,10 @@ func (w *w) Write(b []byte) (int, error) {
 type reg struct {
 	name string
 	off  int64
-	fd   IO
+	fd   syscall.DevFile
 }
 
-// NewReg returns an IO usable for registers.
+// NewReg returns an syscall.DevFile usable for registers.
 func NewReg(t9 FS) (*reg, error) {
 	fd, err := t9.Open("/dev/reg32")
 	if err != nil {
@@ -74,9 +73,10 @@ func (r *reg) Write(addr uint32, val uint32) {
 func (r *reg) Read(addr uint32) uint32 {
 	l := uint32(math.MaxUint32)
 	// reading from "air" always gives all 1s on most systems.
-	if err := binary.Read(io.NewSectionReader(r.fd, 4, int64(addr)), binary.LittleEndian, &l); err != nil {
-		log.Printf("%s.Read(%#x): %v", r.name, addr)
-	}
+	// fixme
+	//	if err := binary.Read(io.NewSectionReader(r.fd, 4, int64(addr)), binary.LittleEndian, &l); err != nil {
+	//		log.Printf("%s.Read(%#x): %v", r.name, addr)
+	//	}
 
 	return l
 }
@@ -181,7 +181,7 @@ func init() {
 
 // CreateLeds creates LEDs in the local tamago file system.
 // It uses the io, provided, for io to the underlying device.
-func CreateLeds(fs FS, io IO) error {
+func CreateLeds(fs FS, io syscall.DevFile) error {
 	if err := syscall.MkDev("/dev/white", 0666, func() (syscall.DevFile, error) {
 		return &reg{
 			off:  0,

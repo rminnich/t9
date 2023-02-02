@@ -12,6 +12,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"syscall"
 	"time"
 
 	"harvey-os.org/ninep/protocol"
@@ -37,7 +38,6 @@ type file struct {
 }
 
 var _ FS = &ninep{}
-var _ IO = &file{}
 
 func NewNinep(netname, addr, root string, opt ...protocol.ClientOpt) (*ninep, error) {
 	conn, err := net.DialTimeout(netname, addr, 5*time.Second)
@@ -94,7 +94,7 @@ func (n *ninep) Close() error {
 // Open implements os.Open. Always take abs paths,
 // the Tamago environment is not complex enough
 // to warrant anything else.
-func (root *ninep) Open(name string) (IO, error) {
+func (root *ninep) Open(name string) (syscall.DevFile, error) {
 	rfid, fid := root.fid, root.cl.GetFID()
 	v("Walk fid %d to %d name %q", rfid, fid, name)
 	w, err := root.cl.CallTwalk(rfid, fid, filepath.SplitList(name))
