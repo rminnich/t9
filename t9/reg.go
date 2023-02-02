@@ -21,6 +21,7 @@ import (
 	"log"
 	"math"
 	"runtime"
+	"syscall"
 	"time"
 )
 
@@ -39,6 +40,7 @@ func (w *w) Write(b []byte) (int, error) {
 
 type reg struct {
 	name string
+	off  int64
 	fd   IO
 }
 
@@ -52,6 +54,23 @@ func NewReg(t9 FS) (*reg, error) {
 	return &reg{name: "/dev/reg32", fd: fd}, nil
 }
 
+// Pread implements PRead.
+func (r *reg) Pread(b []byte, off int64) (int, error) {
+	return -1, fmt.Errorf("not yet")
+}
+
+// Pwrite implements PWrite.
+func (r *reg) Pwrite(b []byte, off int64) (int, error) {
+	return -1, fmt.Errorf("not yet")
+}
+
+func (r *reg) Write(addr uint32, val uint32) {
+	ws := &w{off: int64(addr), f: r.fd}
+	if err := binary.Write(ws, binary.LittleEndian, &val); err != nil {
+		log.Printf("%s.Write(%#x, %#x): %v", r.name, addr, val)
+	}
+}
+
 func (r *reg) Read(addr uint32) uint32 {
 	l := uint32(math.MaxUint32)
 	// reading from "air" always gives all 1s on most systems.
@@ -60,13 +79,6 @@ func (r *reg) Read(addr uint32) uint32 {
 	}
 
 	return l
-}
-
-func (r *reg) Write(addr uint32, val uint32) {
-	ws := &w{off: int64(addr), f: r.fd}
-	if err := binary.Write(ws, binary.LittleEndian, &val); err != nil {
-		log.Printf("%s.Write(%#x, %#x): %v", r.name, addr, val)
-	}
 }
 
 func (r *reg) Get(addr uint32, pos int, mask int) uint32 {
@@ -161,4 +173,29 @@ func (r *reg) WaitSignal(done chan bool, addr uint32, pos int, mask int, val uin
 	}
 
 	return true
+}
+
+func init() {
+	creators = append(creators, CreateLeds)
+}
+
+// CreateLeds creates LEDs in the local tamago file system.
+// It uses the io, provided, for io to the underlying device.
+func CreateLeds(fs FS, io IO) error {
+	if err := syscall.MkDev("/dev/white", 0666, func() (syscall.DevFile, error) {
+		return &reg{
+			off:  0,
+			fd:   io,
+			name: "white",
+		}, nil
+	}); err != nil {
+		return (err)
+	}
+	return syscall.MkDev("/dev/blue", 0666, func() (syscall.DevFile, error) {
+		return &reg{
+			off:  0,
+			fd:   io,
+			name: "blue",
+		}, nil
+	})
 }
