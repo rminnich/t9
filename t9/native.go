@@ -31,12 +31,25 @@ func (*nfs) Close() error {
 	return nil
 }
 
+// Pread implements PRead.
+func (f *nativefile) Pread(b []byte, off int64) (int, error) {
+	return f.File.ReadAt(b, off)
+}
+
+// Pwrite implements PWrite.
+func (f *nativefile) Pwrite(b []byte, off int64) (int, error) {
+	return f.File.WriteAt(b, off)
+}
+
 // Open implements os.Open. Always take abs paths,
 // the Tamago environment is not complex enough
 // to warrant anything else.
 func (root *nfs) Open(name string) (syscall.DevFile, error) {
-	need translatro
-	return os.Open(filepath.Join(root.root, name))
+	f, err := os.Open(filepath.Join(root.root, name))
+	if err != nil {
+		return nil, err
+	}
+	return &nativefile{File: f}, nil
 }
 
 func (root *nfs) Stat(name string) (os.FileInfo, error) {
@@ -47,6 +60,8 @@ func (root *nfs) Stat(name string) (os.FileInfo, error) {
 func (f *nativefile) Name() string {
 	return f.Name()
 }
+
+var _ syscall.DevFile = &nativefile{}
 
 func (f *nativefile) Size() int64 {
 	fi, err := f.Stat()

@@ -166,6 +166,15 @@ func (f *file) WriteAt(b []byte, off int64) (int, error) {
 	return int(n), err
 }
 
+// Pread implements Pread
+func (f *file) Pread(b []byte, off int64) (int, error) {
+	return f.ReadAt(b, off)
+}
+
+func (f *file) Pwrite(b []byte, off int64) (int, error) {
+	return f.WriteAt(b, off)
+}
+
 // implement fs.FileInfo
 func (f *file) Name() string {
 	return f.name
