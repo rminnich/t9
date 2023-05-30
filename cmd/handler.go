@@ -143,7 +143,7 @@ func Handler(term *term.Terminal) {
 			continue
 		}
 
-		if err = Handle(term, s); err != nil {
+		if err = handle(term, s); err != nil {
 			if errors.Is(err, ErrUnknownCmd) && f != nil {
 
 				for _, arg := range strings.Fields(s) {

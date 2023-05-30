@@ -3,19 +3,25 @@ module github.com/usbarmory/tamago-example
 go 1.20
 
 require (
+	github.com/Harvey-OS/ninep v0.0.0-20200724082702-d30a6d4f9789
 	github.com/arl/statsviz v0.5.2
 	github.com/btcsuite/btcd v0.23.4
 	github.com/btcsuite/btcd/btcec/v2 v2.3.2
 	github.com/btcsuite/btcd/btcutil v1.1.3
 	github.com/btcsuite/btcd/chaincfg/chainhash v1.0.2
 	github.com/cloudflare/circl v1.3.3
+	github.com/jacobsa/fuse v0.0.0-20230509090321-7263f3a2b474
+	github.com/jacobsa/syncutil v0.0.0-20180201203307-228ac8e5a6c3
 	github.com/miekg/dns v1.1.54
+	github.com/u-root/u-root v6.0.1-0.20200728234108-3441aaa6cf0c+incompatible
 	github.com/usbarmory/crucible v0.0.0-20230412092556-269c90b0067e
 	github.com/usbarmory/imx-enet v0.0.0-20230210123530-18463adc40b7
 	github.com/usbarmory/imx-usbnet v0.0.0-20230503192114-c54f43365f06
 	github.com/usbarmory/tamago v0.0.0-20230529110145-b8025086bb9f
 	golang.org/x/crypto v0.9.0
 	golang.org/x/term v0.8.0
+	gvisor.dev/gvisor v0.0.0-20230118154312-8c6072b1c5c4
+	harvey-os.org v0.1.0
 )
 
 require (
@@ -33,5 +39,4 @@ require (
 	golang.org/x/time v0.0.0-20191024005414-555d28b269f0 // indirect
 	golang.org/x/tools v0.3.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
-	gvisor.dev/gvisor v0.0.0-20230118154312-8c6072b1c5c4 // indirect
 )
