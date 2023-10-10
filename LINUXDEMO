@@ -1,0 +1,24 @@
+#!/bin/bash
+
+set -x
+
+echo plug it in, then hit return
+
+./DIT
+
+set -e
+echo MAKE SURE that local IP is 10.2, not 10.1
+ping 10.2
+
+sudo mount -t 9p -o trans=tcp,noextend 10.0.0.1   /armory
+ls /armory/
+sleep 1
+cat /armory/dev/blue 
+sleep 5
+
+echo -n off | sudo dd of=/armory/dev/blue conv=notrunc
+
+sleep 5
+
+echo -n on | sudo dd of=/armory/dev/blue conv=notrunc
+

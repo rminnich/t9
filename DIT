@@ -8,6 +8,8 @@ PATH=`pwd`/../tamago-go/bin:$PATH
 export TAMAGO=`pwd`/../tamago-go/bin/go 
 make CROSS_COMPILE=arm-none-eabi- TARGET=usbarmory boot
 
+hit control-C on linux or return on mac
+read i
 which go
 # this build step gives network time to come up
 # the real action seems to be in p9 now
